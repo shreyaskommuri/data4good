@@ -525,7 +525,7 @@ def get_sb_tracts():
     
     Data sources:
     - Census Bureau API: Demographics, income, poverty
-    - Census TIGERweb: Real tract centroid coordinates
+    - Census TIGERweb: Real tract centroid coordinates (GEOID normalized to 11 digits)
     - FEMA NFHL: Real flood zone designations
     - BLS QCEW: Real coastal employment data
     

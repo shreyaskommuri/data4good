@@ -272,6 +272,14 @@ class CensusBureauClient:
             response.raise_for_status()
             geojson = response.json()
             
+            # Normalize GEOIDs to match Census API format (11 digits)
+            # TIGERweb returns 12-digit GEOIDs, Census API uses 11-digit
+            for feature in geojson.get('features', []):
+                props = feature.get('properties', {})
+                if 'GEOID' in props and isinstance(props['GEOID'], str):
+                    # Truncate to 11 digits (state + county + tract)
+                    props['GEOID'] = props['GEOID'][:11]
+            
             logger.info(f"Retrieved geometries for {len(geojson.get('features', []))} tracts")
             return geojson
             
