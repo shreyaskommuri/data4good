@@ -1,8 +1,55 @@
+# OS files
 .DS_Store
+Thumbs.db
+
+# Environment variables
 .env
+.env.local
+
+# Virtual environments
 .venv/
+venv/
+env/
+ENV/
+
+# Python
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+
+# Node
 node_modules/
+
+# Build outputs
 dist/
 build/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Data files (keep structure, ignore large files)
+data/raw/*
+data/processed/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+
+# Logs
+*.log
+logs/
+
+# Cache
+.cache/
+.pytest_cache/
