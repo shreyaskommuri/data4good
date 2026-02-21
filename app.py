@@ -57,6 +57,13 @@ try:
 except ImportError:
     REAL_DATA_AVAILABLE = False
 
+# Import housing data loader
+try:
+    from src.data.housing_loader import HousingDataLoader, load_housing_data
+    HOUSING_DATA_AVAILABLE = Path('APR_Download_2024.xlsx').exists()
+except ImportError:
+    HOUSING_DATA_AVAILABLE = False
+
 # Live Data directory
 LIVE_DATA_DIR = Path("drive-download-20260221T181111Z-3-001")
 CACHE_DIR = Path("data/cache")
@@ -770,6 +777,8 @@ if has_real_census:
     data_sources.append(f"Census Tracts: {n_tracts}")
 if has_noaa_data:
     data_sources.append(f"NOAA: {len(water_levels)} obs")
+if HOUSING_DATA_AVAILABLE:
+    data_sources.append("Housing: 9,220 records")
 
 if has_live_data or has_real_census or has_noaa_data:
     st.markdown(f"""
@@ -1382,6 +1391,142 @@ if has_noaa_data:
             </p>
         </div>
         """, unsafe_allow_html=True)
+
+# ============================================================================
+# HOUSING PRESSURE INDEX (SBCAG APR Data)
+# ============================================================================
+
+if HOUSING_DATA_AVAILABLE:
+    st.markdown('<p class="section-title" style="margin-top: 1.5rem;">Housing Pressure Index</p>', unsafe_allow_html=True)
+    st.markdown('<p style="color: #64748b; font-size: 0.85rem; margin-top: -0.5rem;">Source: California HCD Annual Progress Reports via SBCAG &mdash; 9,220 housing records (2018&ndash;2024)</p>', unsafe_allow_html=True)
+    
+    @st.cache_data(ttl=3600)
+    def get_housing_metrics():
+        data = load_housing_data('APR_Download_2024.xlsx')
+        return {
+            'pressure': data['pressure'].to_dict('records'),
+            'trend': data['trend'].to_dict('records'),
+            'rhna': data['rhna'].to_dict('records'),
+        }
+    
+    housing = get_housing_metrics()
+    pressure_df = pd.DataFrame(housing['pressure'])
+    trend_df = pd.DataFrame(housing['trend'])
+    
+    col_hpi_chart, col_hpi_detail = st.columns([2, 1])
+    
+    with col_hpi_chart:
+        # Bar chart: Housing Pressure Index by jurisdiction
+        pressure_sorted = pressure_df.sort_values('housing_pressure_index', ascending=True)
+        colors = []
+        for val in pressure_sorted['housing_pressure_index']:
+            if val >= 80: colors.append('#ef4444')
+            elif val >= 60: colors.append('#f59e0b')
+            elif val >= 40: colors.append('#3b82f6')
+            else: colors.append('#22c55e')
+        
+        fig_hpi = go.Figure(go.Bar(
+            x=pressure_sorted['housing_pressure_index'],
+            y=pressure_sorted['jurisdiction'].str.title(),
+            orientation='h',
+            marker=dict(color=colors, line=dict(width=0)),
+            hovertemplate='%{y}: %{x:.1f}/100<extra>Housing Pressure</extra>',
+        ))
+        
+        fig_hpi.update_layout(
+            template=None,
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(10,10,15,1)',
+            height=320,
+            margin=dict(l=10, r=20, t=10, b=30),
+            font=dict(family="Inter", size=11, color='#a0a0b0'),
+            xaxis=dict(
+                title='Housing Pressure Index (0-100)',
+                gridcolor='rgba(255,255,255,0.05)',
+                range=[0, 100],
+            ),
+            yaxis=dict(
+                gridcolor='rgba(255,255,255,0.05)',
+            ),
+        )
+        st.plotly_chart(fig_hpi, use_container_width=True, config={'displayModeBar': False})
+    
+    with col_hpi_detail:
+        # County-wide summary stats
+        avg_pressure = pressure_df['housing_pressure_index'].mean()
+        avg_rhna = pressure_df['progress_pct'].mean()
+        critical_count = len(pressure_df[pressure_df['housing_pressure_index'] >= 80])
+        total_permits = trend_df['total_permits'].sum() if len(trend_df) > 0 else 0
+        total_affordable = trend_df['affordable_permits'].sum() if len(trend_df) > 0 else 0
+        
+        st.markdown(f"""
+        <div class="glass-card">
+            <div class="metric-label">County Overview</div>
+            <div style="margin-top: 1rem;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 0.75rem;">
+                    <span style="color: #a0a0b0;">Avg Pressure</span>
+                    <span style="font-family: 'JetBrains Mono'; font-weight: 600; color: {'#ef4444' if avg_pressure > 70 else '#f59e0b'};">{avg_pressure:.1f}/100</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 0.75rem;">
+                    <span style="color: #a0a0b0;">RHNA Progress</span>
+                    <span style="font-family: 'JetBrains Mono'; font-weight: 600; color: {'#ef4444' if avg_rhna < 20 else '#f59e0b'};">{avg_rhna:.1f}%</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 0.75rem;">
+                    <span style="color: #a0a0b0;">Critical Jurisdictions</span>
+                    <span style="font-family: 'JetBrains Mono'; font-weight: 600; color: #ef4444;">{critical_count}/9</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 0.75rem;">
+                    <span style="color: #a0a0b0;">Total Permits (7yr)</span>
+                    <span style="font-family: 'JetBrains Mono'; font-weight: 600;">{total_permits:,.0f}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span style="color: #a0a0b0;">Affordable Units</span>
+                    <span style="font-family: 'JetBrains Mono'; font-weight: 600; color: #8b5cf6;">{total_affordable:,.0f}</span>
+                </div>
+            </div>
+        </div>
+        <div class="glass-card" style="margin-top: 1rem;">
+            <div class="metric-label">Data Source</div>
+            <p style="font-size: 0.8rem; color: #a0a0b0; margin-top: 0.5rem;">
+                CA HCD Annual Progress Reports<br>
+                via SBCAG Housing Dashboard<br>
+                9,220 records &bull; 2018&ndash;2024
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # Production trend chart
+    if len(trend_df) > 0:
+        fig_trend = go.Figure()
+        fig_trend.add_trace(go.Bar(
+            x=trend_df['Year'], y=trend_df['above_moderate_permits'],
+            name='Above Moderate', marker_color='#3b82f6',
+        ))
+        fig_trend.add_trace(go.Bar(
+            x=trend_df['Year'], y=trend_df['moderate_permits'],
+            name='Moderate', marker_color='#8b5cf6',
+        ))
+        fig_trend.add_trace(go.Bar(
+            x=trend_df['Year'], y=trend_df['low_permits'],
+            name='Low Income', marker_color='#f59e0b',
+        ))
+        fig_trend.add_trace(go.Bar(
+            x=trend_df['Year'], y=trend_df['very_low_permits'],
+            name='Very Low', marker_color='#ef4444',
+        ))
+        fig_trend.update_layout(
+            template=None, barmode='stack',
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(10,10,15,1)',
+            height=250,
+            margin=dict(l=40, r=20, t=30, b=30),
+            font=dict(family="Inter", size=11, color='#a0a0b0'),
+            title=dict(text='Annual Housing Production by Income Level', font=dict(size=13, color='#ffffff'), x=0),
+            xaxis=dict(gridcolor='rgba(255,255,255,0.05)'),
+            yaxis=dict(title='Permits', gridcolor='rgba(255,255,255,0.05)'),
+            legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1, font=dict(size=10)),
+        )
+        st.plotly_chart(fig_trend, use_container_width=True, config={'displayModeBar': False})
 
 # ============================================================================
 # SANKEY DIAGRAM - Worker Flow
