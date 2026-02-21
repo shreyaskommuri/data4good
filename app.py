@@ -91,20 +91,20 @@ st.markdown("""
     
     /* Root variables */
     :root {
-        --bg-primary: #0a0a0f;
-        --bg-secondary: #12121a;
-        --bg-tertiary: #1a1a24;
-        --glass-bg: rgba(255, 255, 255, 0.03);
-        --glass-border: rgba(255, 255, 255, 0.08);
-        --text-primary: #ffffff;
-        --text-secondary: #a0a0b0;
-        --text-muted: #606070;
-        --accent-blue: #3b82f6;
-        --accent-purple: #8b5cf6;
-        --accent-gradient: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+        --bg-primary: #0f1115;
+        --bg-secondary: #1a1d24;
+        --bg-tertiary: #232730;
+        --glass-bg: rgba(255, 255, 255, 0.05);
+        --glass-border: rgba(255, 255, 255, 0.1);
+        --text-primary: #f8fafc;
+        --text-secondary: #cbd5e1;
+        --text-muted: #94a3b8;
+        --accent-blue: #2563eb;    /* Professional TreeHacks deeper blue */
+        --accent-purple: #7c3aed;  
+        --accent-gradient: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%); /* Clean stripe-like gradient */
         --danger: #ef4444;
         --warning: #f59e0b;
-        --success: #22c55e;
+        --success: #10b981;
     }
     
     /* Global styles */
@@ -814,56 +814,52 @@ else:
     """, unsafe_allow_html=True)
 
 # ============================================================================
-# SEVERITY CONTROL BAR
+# SIDEBAR CONTROLS (SCENARIO CONFIGURATION)
 # ============================================================================
 
-st.markdown('<p class="section-title">Scenario Configuration</p>', unsafe_allow_html=True)
+st.sidebar.markdown('<h2 style="font-size: 1.25rem; font-weight: 700; color: #f8fafc; margin-bottom: 1.5rem;">Climate Scenario Simulator</h2>', unsafe_allow_html=True)
 
-col_sev1, col_sev2, col_sev3, col_sev4 = st.columns([2, 1, 1, 1])
+shock_severity = st.sidebar.slider(
+    "Storm Severity Level",
+    min_value=0.0,
+    max_value=1.0,
+    value=0.5,
+    step=0.05,
+    format="%.0f%%",
+    help="0% = Normal conditions, 100% = Catastrophic event",
+    key="severity_main"
+)
 
-with col_sev1:
-    shock_severity = st.slider(
-        "Storm Severity Level",
-        min_value=0.0,
-        max_value=1.0,
-        value=0.5,
-        step=0.05,
-        format="%.0f%%",
-        help="0% = Normal conditions, 100% = Catastrophic event",
-        key="severity_main"
-    )
+shock_duration = st.sidebar.selectbox(
+    "Duration",
+    options=[7, 14, 21, 30, 45, 60],
+    index=2,
+    format_func=lambda x: f"{x} days",
+    help="How long the climate shock/event persists."
+)
 
-with col_sev2:
-    shock_duration = st.selectbox(
-        "Duration",
-        options=[7, 14, 21, 30, 45, 60],
-        index=2,
-        format_func=lambda x: f"{x} days"
-    )
+shock_start = st.sidebar.selectbox(
+    "Shock Start",
+    options=[15, 30, 45, 60],
+    index=1,
+    format_func=lambda x: f"Day {x}",
+    help="The day within the forecast simulation when the event begins."
+)
 
-with col_sev3:
-    shock_start = st.selectbox(
-        "Shock Start",
-        options=[15, 30, 45, 60],
-        index=1,
-        format_func=lambda x: f"Day {x}"
-    )
+sim_days = st.sidebar.selectbox(
+    "Forecast Length",
+    options=[180, 365, 540, 730],
+    index=1,
+    format_func=lambda x: f"{x} days",
+    help="The total length of time projected into the future for recovery tracking."
+)
 
-with col_sev4:
-    sim_days = st.selectbox(
-        "Forecast",
-        options=[180, 365, 540, 730],
-        index=1,
-        format_func=lambda x: f"{x} days"
-    )
+st.sidebar.markdown('<hr style="border-color: rgba(255,255,255,0.1); margin: 2rem 0;">', unsafe_allow_html=True)
 
-# Recovery parameters (hidden in expander)
-with st.expander("Advanced Parameters", expanded=False):
-    adv_col1, adv_col2 = st.columns(2)
-    with adv_col1:
-        recovery_rate = st.slider("Recovery Rate (r)", 0.02, 0.25, 0.10, 0.01)
-    with adv_col2:
-        carrying_capacity = st.slider("Max Employment (K)", 0.70, 1.00, 0.95, 0.01)
+# Recovery parameters (hidden in expander within sidebar)
+with st.sidebar.expander("Advanced Recovery Models", expanded=False):
+    recovery_rate = st.slider("Recovery Rate (r)", 0.02, 0.25, 0.10, 0.01, help="Intrinsic job creation/recovery speed. Based on the logistic growth component: rL(1 - L/K)")
+    carrying_capacity = st.slider("Max Employment (K)", 0.70, 1.00, 0.95, 0.01, help="Maximum possible labor force participation post-shock (Carrying Capacity).")
 
 # ============================================================================
 # COMPUTE TRACT VULNERABILITY PROBABILITIES
@@ -921,77 +917,82 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # ============================================================================
-# MAIN CONTENT: MAP + SIDEBAR
+# MAIN CONTENT: MAP + TRACT ANALYSIS
 # ============================================================================
 
-col_map, col_sidebar = st.columns([2, 1])
+st.markdown('<p class="section-title">Live Hazard Map</p>', unsafe_allow_html=True)
 
-with col_map:
-    st.markdown('<p class="section-title">Live Hazard Map</p>', unsafe_allow_html=True)
-    
-    # Live indicator
-    st.markdown("""
-    <div class="live-indicator">
-        <span class="live-dot"></span>
-        Real-time vulnerability mapping
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # Create dark mode map
-    fig_map = px.scatter_mapbox(
-        sb_tracts,
-        lat='lat',
-        lon='lon',
-        color='exodus_prob',
-        size='coastal_jobs_pct',
-        hover_name='name',
-        hover_data={
-            'exodus_prob': ':.1%',
-            'ej_percentile': True,
-            'coastal_jobs_pct': ':.0f',
-            'population': ':,',
-            'vulnerability': True,
-            'lat': False,
-            'lon': False
-        },
-        color_continuous_scale=[
-            [0, '#22c55e'],
-            [0.25, '#84cc16'],
-            [0.5, '#eab308'],
-            [0.75, '#f97316'],
-            [1, '#ef4444']
-        ],
-        range_color=[0, 0.6],
-        size_max=35,
-        zoom=10.5,
-        center={'lat': 34.42, 'lon': -119.75},
-        mapbox_style='carto-darkmatter',
-        labels={
-            'exodus_prob': 'Exodus Probability',
-            'ej_percentile': 'EJ Burden',
-            'coastal_jobs_pct': 'Coastal Jobs %',
-            'population': 'Population'
-        }
-    )
-    
-    fig_map.update_layout(
-        margin=dict(l=0, r=0, t=0, b=0),
-        height=500,
-        paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)',
-        font=dict(family="Inter, sans-serif", color='#a0a0b0'),
-        coloraxis_colorbar=dict(
-            title=dict(text="Exodus<br>Prob.", font=dict(size=11)),
-            tickformat=".0%",
-            bgcolor='rgba(0,0,0,0)',
-            tickfont=dict(size=10)
-        )
-    )
-    
-    st.plotly_chart(fig_map, use_container_width=True, config={'displayModeBar': False})
+# Live indicator
+st.markdown("""
+<div class="live-indicator">
+    <span class="live-dot"></span>
+    Real-time vulnerability mapping
+</div>
+""", unsafe_allow_html=True)
 
-with col_sidebar:
-    st.markdown('<p class="section-title">Tract Analysis</p>', unsafe_allow_html=True)
+# Create dark mode map
+fig_map = px.scatter_mapbox(
+    sb_tracts,
+    lat='lat',
+    lon='lon',
+    color='exodus_prob',
+    size='coastal_jobs_pct',
+    hover_name='name',
+    hover_data={
+        'exodus_prob': ':.1%',
+        'ej_percentile': True,
+        'coastal_jobs_pct': ':.0f',
+        'population': ':,',
+        'vulnerability': True,
+        'lat': False,
+        'lon': False
+    },
+    color_continuous_scale=[
+        [0, '#10b981'],     # Updated to match success token
+        [0.25, '#84cc16'],
+        [0.5, '#f59e0b'],   # Updated to match warning token
+        [0.75, '#f97316'],
+        [1, '#ef4444']      # Danger token
+    ],
+    range_color=[0, 0.6],
+    size_max=35,
+    zoom=10.5,
+    center={'lat': 34.42, 'lon': -119.75},
+    mapbox_style='carto-darkmatter',
+    labels={
+        'exodus_prob': 'Displacement Risk',
+        'ej_percentile': 'EJ Demographic Burden',
+        'coastal_jobs_pct': 'Coastal Industry Dependency (%)',
+        'population': 'Population'
+    }
+)
+
+fig_map.update_layout(
+    margin=dict(l=0, r=0, t=0, b=0),
+    height=550,  # Slightly taller map
+    paper_bgcolor='rgba(0,0,0,0)',
+    plot_bgcolor='rgba(0,0,0,0)',
+    font=dict(family="Inter, sans-serif", color='#cbd5e1'),
+    dragmode='zoom',    # Enables mouse-wheel zoom
+    coloraxis_colorbar=dict(
+        title=dict(text="Displacement<br>Risk", font=dict(size=11)),
+        tickformat=".0%",
+        bgcolor='rgba(0,0,0,0)',
+        tickfont=dict(size=10)
+    )
+)
+
+# Configure the plotly graph to allow scrolling and avoid static mode
+st.plotly_chart(fig_map, use_container_width=True, config={'scrollZoom': True, 'displayModeBar': True, 'modeBarButtonsToRemove': ['lasso2d', 'select2d']})
+
+
+st.markdown('<hr style="border-color: rgba(255,255,255,0.1); margin: 3rem 0;">', unsafe_allow_html=True)
+st.markdown('<p class="section-title">Tract Analysis</p>', unsafe_allow_html=True)
+
+# Layout tract analysis into two even columns below the map
+col_tract_info, col_tract_stats = st.columns([1, 1.2])
+
+with col_tract_info:
     
     # Tract selector
     selected_tract = st.selectbox(
@@ -1019,14 +1020,24 @@ with col_sidebar:
     # Stats grid
     col_stat1, col_stat2 = st.columns(2)
     with col_stat1:
-        st.metric("Population", f"{tract['population']:,}")
-        st.metric("EJ Burden", f"{tract['ej_percentile']}th")
+        st.metric("Population", f"{tract['population']:,}", help="Total population in this census tract.")
+        st.metric("EJ Burden", f"{tract['ej_percentile']}th", help="Environmental Justice Percentile (higher is worse).")
     with col_stat2:
-        st.metric("Coastal Jobs", f"{tract['coastal_jobs_pct']}%")
-        st.metric("Median Income", f"${tract['median_income']//1000}k")
+        st.metric("Coastal Jobs", f"{tract['coastal_jobs_pct']}%", help="Percentage of residents working in coastal-dependent industries.")
+        st.metric("Median Income", f"${tract['median_income']//1000}k", help="Median household annual income.")
+    
+    # Conditional Actionable Insight
+    st.markdown('<div style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: #94a3b8; margin: 1rem 0 0.5rem;">Automated Insight</div>', unsafe_allow_html=True)
+    if tract['exodus_prob'] > 0.4:
+        st.markdown(f'<div style="background: rgba(239, 68, 68, 0.1); border-left: 3px solid #ef4444; padding: 0.75rem; border-radius: 4px; font-size: 0.85rem; color: #f8fafc;"><strong>High Risk of Displacement.</strong> {tract["coastal_jobs_pct"]}% of the workforce is directly exposed. Pre-emptive financial assistance and job-transition programs recommended.</div>', unsafe_allow_html=True)
+    elif tract['exodus_prob'] > 0.2:
+        st.markdown(f'<div style="background: rgba(245, 158, 11, 0.1); border-left: 3px solid #f59e0b; padding: 0.75rem; border-radius: 4px; font-size: 0.85rem; color: #f8fafc;"><strong>Elevated Vulnerability.</strong> EJ burden is in the {tract["ej_percentile"]}th percentile. Monitor housing pressures closely.</div>', unsafe_allow_html=True)
+    else:
+        st.markdown('<div style="background: rgba(16, 185, 129, 0.1); border-left: 3px solid #10b981; padding: 0.75rem; border-radius: 4px; font-size: 0.85rem; color: #f8fafc;"><strong>Stable Area.</strong> Low near-term workforce displacement risk.</div>', unsafe_allow_html=True)
+
     
     # Risk factors
-    st.markdown('<div style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; margin: 1rem 0 0.5rem;">Risk Factors</div>', unsafe_allow_html=True)
+    st.markdown('<div style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: #94a3b8; margin: 1.5rem 0 0.5rem;">Risk Factors</div>', unsafe_allow_html=True)
     risk_badges = []
     if tract['high_poverty']:
         risk_badges.append("High Poverty")
@@ -1040,10 +1051,11 @@ with col_sidebar:
         badges_str = " · ".join(risk_badges)
         st.markdown(f'<div style="color: #f59e0b; font-size: 0.875rem;">{badges_str}</div>', unsafe_allow_html=True)
     else:
-        st.markdown('<div style="color: #22c55e; font-size: 0.875rem;">Low Risk Area</div>', unsafe_allow_html=True)
+        st.markdown('<div style="color: #10b981; font-size: 0.875rem;">Low Risk Area</div>', unsafe_allow_html=True)
     
+with col_tract_stats:
     # Top vulnerable tracts
-    st.markdown('<p class="section-title" style="margin-top: 1.5rem;">Most Vulnerable Areas</p>', unsafe_allow_html=True)
+    st.markdown('<p class="section-title">Highest Priority Areas</p>', unsafe_allow_html=True)
     
     top_tracts = sb_tracts.nlargest(5, 'exodus_prob')
     for _, row in top_tracts.iterrows():
@@ -1052,7 +1064,7 @@ with col_sidebar:
         st.markdown(f"""
         <div class="tract-item {risk_class}">
             <span class="tract-name">{row['name']}</span>
-            <span class="tract-prob" style="color: {color}">{row['exodus_prob']:.0%}</span>
+            <span class="tract-prob" style="color: {color}">{row['exodus_prob']:.0%} Displacement Risk</span>
         </div>
         """, unsafe_allow_html=True)
 
@@ -1177,7 +1189,7 @@ if has_live_data and industry_df is not None and len(industry_df) > 0:
             marker=dict(
                 color=top_ind['is_climate_sensitive'].map({True: '#ef4444', False: '#3b82f6'}),
             ),
-            hovertemplate='%{y}: %{x} workers<extra></extra>'
+            hovertemplate='<b>%{y}</b><br>%{x} workers identified<extra></extra>'
         ))
         
         fig_ind.update_layout(
@@ -1575,9 +1587,9 @@ with col_sankey:
                 int(coastal_workers * to_unemployed),
                 int(coastal_workers * to_transitioning)
             ],
-            color=['rgba(34, 197, 94, 0.4)', 'rgba(139, 92, 246, 0.4)', 
+            color=['rgba(16, 185, 129, 0.4)', 'rgba(139, 92, 246, 0.4)', 
                    'rgba(239, 68, 68, 0.4)', 'rgba(245, 158, 11, 0.4)'],
-            hovertemplate='%{value:,} workers<extra></extra>'
+            hovertemplate='Flow: <b>%{value:,}</b> workers transitioned<extra></extra>'
         )
     )])
     
