@@ -136,7 +136,7 @@ const KPIHeader = memo(function KPIHeader({ sim, loading }) {
             gap: 6,
           }}>
             Resilience Score
-            <Tooltip content="Santa Barbara County's ability to maintain coastal employment through climate disruption. Based on ODE labor-flow modeling across <strong>109 census tracts</strong>." />
+            <Tooltip content="Santa Barbara County's ability to maintain coastal employment through climate disruption. Based on ODE labor-flow modeling across <strong>109 census tracts</strong>.<br/><br/><strong>Calculation:</strong> Resilience Score = 0.3 × recovery_factor + 0.3 × depth_factor + 0.4 × equilibrium_factor<br/>• Recovery factor = 1 / (1 + recovery_time / 30 days)<br/>• Depth factor = minimum_labor_force / initial_labor_force<br/>• Equilibrium factor = final_labor_force / initial_labor_force<br/><br/>Higher scores (0-100) indicate faster recovery and less workforce disruption." />
           </div>
         </div>
         <div>

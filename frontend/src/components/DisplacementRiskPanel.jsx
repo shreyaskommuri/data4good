@@ -28,7 +28,7 @@ export default function DisplacementRiskPanel({ risk, loading }) {
         <div>
           <div style={{ fontSize: '1.1rem', fontWeight: 700, display: 'flex', alignItems: 'center' }}>
             Displacement Risk Model
-            <Tooltip content="Machine learning model predicts which workers are most likely to be <strong>displaced</strong> from coastal counties or climate-sensitive industries. Based on job history, industry exposure, and tenure patterns." />
+            <Tooltip content="Machine learning model predicts which workers are most likely to be <strong>displaced</strong> from coastal counties or climate-sensitive industries. Based on job history, industry exposure, and tenure patterns.<br/><br/><strong>Model:</strong> XGBoost binary classifier trained on worker displacement patterns<br/><br/><strong>Features:</strong> Industry type (climate-sensitive vs. resilient), coastal job dependency, job tenure (months), employment history patterns, job transitions, and demographic factors<br/><br/><strong>Risk Score:</strong> Probability (0-100%) that a worker will be displaced after a climate shock. Higher scores indicate workers in vulnerable industries or with unstable employment patterns." />
           </div>
           <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
             XGBoost ML · {risk?.total_workers || 0} workers analyzed

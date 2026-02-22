@@ -84,7 +84,7 @@ export default function EconomicImpactPanel({ impact, loading }) {
         <div style={{ flex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <div className="impact-title">Recovery Risk</div>
-            <Tooltip content="We simulate multiple shock scenarios and combine recovery dynamics with workforce transition pressure to produce a <strong>0–100 recovery risk score</strong> for each tract. Higher scores indicate communities that are likely to recover more slowly after a climate shock." />
+            <Tooltip content="We simulate multiple shock scenarios and combine recovery dynamics with workforce transition pressure to produce a <strong>0–100 recovery risk score</strong> for each tract. Higher scores indicate communities that are likely to recover more slowly after a climate shock.<br/><br/><strong>Calculation:</strong> Recovery Risk = Sea Level Risk (0-25) + Economic Vulnerability (0-35) + Workforce Risk (0-25) + Social Vulnerability (0-15)<br/><br/>• <strong>Sea Level Risk (0-25):</strong> Flood zone (10pts) + coastal proximity (0-15pts)<br/>• <strong>Economic Vulnerability (0-35):</strong> Low income (0-15pts) + poverty rate (0-10pts) + housing pressure (0-10pts)<br/>• <strong>Workforce Risk (0-25):</strong> Coastal jobs % (0-10pts) + climate-sensitive jobs % (0-10pts) + job instability (0-5pts)<br/>• <strong>Social Vulnerability (0-15):</strong> EJ percentile (0-7pts) + limited English % (0-4pts) + minority % (0-4pts)" />
           </div>
           <div className="impact-subtitle">
             Which communities are most likely to recover slowly after a climate shock?
