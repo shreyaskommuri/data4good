@@ -12,6 +12,7 @@ import WorkforcePanel from './components/WorkforcePanel';
 import NoaaPanel from './components/NoaaPanel';
 import PolicySection from './components/PolicySection';
 import PDFExportButton from './components/PDFExportButton';
+import ChatPanel from './components/ChatPanel';
 
 import { Shield, Database, Clock } from 'lucide-react';
 
@@ -234,6 +235,9 @@ export default function App() {
         }}>
           <PDFExportButton params={params} simData={sim.data} tracts={tracts.data} selectedTract={selectedTract} onSelectTract={setSelectedTract} />
         </div>
+
+        {/* AI Chatbot (floating) */}
+        <ChatPanel params={params} simData={sim.data} selectedTract={selectedTract} />
 
         {/* Footer */}
         <footer style={{
