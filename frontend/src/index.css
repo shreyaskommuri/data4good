@@ -510,6 +510,103 @@ input[type="range"]::-webkit-slider-thumb {
   box-shadow: 0 8px 20px rgba(59,130,246,0.25);
 }
 
+/* Simplified Impact Panel Styles */
+.impact-hero-simple {
+  padding: 20px;
+  margin: 18px 0;
+  border-radius: 14px;
+  background: rgba(15, 16, 24, 0.7);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+.impact-score-context {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+.impact-hero-score-large {
+  font-family: var(--font-display);
+  font-size: 3.2rem;
+  font-weight: 800;
+  color: #f8fafc;
+  line-height: 1;
+  margin-top: 4px;
+  text-shadow: 0 2px 20px rgba(34,211,238,0.3);
+}
+.impact-score-details {
+  display: flex;
+  gap: 20px;
+}
+.impact-score-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.stat-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+.stat-value {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #f8fafc;
+}
+.impact-list-simple {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 20px;
+}
+.impact-item-simple {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  transition: all 0.2s ease;
+}
+.impact-item-simple:hover {
+  background: rgba(255,255,255,0.05);
+  border-color: rgba(255,255,255,0.12);
+  transform: translateX(2px);
+}
+.impact-rank-simple {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: #0b0c12;
+  flex-shrink: 0;
+}
+.impact-item-name {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #f8fafc;
+  margin-bottom: 4px;
+}
+.impact-item-detail {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+.detail-sep {
+  margin: 0 6px;
+  opacity: 0.5;
+}
+.legend-count {
+  font-size: 0.7rem;
+  opacity: 0.7;
+}
+
 @media (max-width: 1100px) {
   .impact-spotlight {
     grid-template-columns: 1fr;
@@ -525,6 +622,15 @@ input[type="range"]::-webkit-slider-thumb {
   }
   .impact-item-geo {
     grid-column: 2 / 3;
+  }
+  .impact-score-context {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+  .impact-score-details {
+    width: 100%;
+    justify-content: space-around;
   }
 }
 
