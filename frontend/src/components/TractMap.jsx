@@ -51,7 +51,7 @@ function tractsToGeoJSON(tracts) {
   };
 }
 
-export default function TractMap({ tracts, loading }) {
+export default function TractMap({ tracts, loading, onSelectTract }) {
   const [hovered, setHovered] = useState(null);
   const [selected, setSelected] = useState(null);
 
@@ -82,11 +82,14 @@ export default function TractMap({ tracts, loading }) {
   const handleClick = useCallback((e) => {
     const f = e.features?.[0];
     if (f) {
-      setSelected({ ...f.properties, lon: e.lngLat.lng, lat: e.lngLat.lat });
+      const tract = { ...f.properties, lon: e.lngLat.lng, lat: e.lngLat.lat };
+      setSelected(tract);
+      onSelectTract?.(tract);
     } else {
       setSelected(null);
+      onSelectTract?.(null);
     }
-  }, []);
+  }, [onSelectTract]);
 
   const handleHover = useCallback((e) => {
     if (e.features?.length) {
@@ -207,7 +210,7 @@ export default function TractMap({ tracts, loading }) {
               longitude={selected.lon}
               latitude={selected.lat}
               anchor="bottom"
-              onClose={() => setSelected(null)}
+              onClose={() => { setSelected(null); onSelectTract?.(null); }}
               closeButton={true}
               closeOnClick={false}
               maxWidth="280px"
@@ -299,6 +302,7 @@ export default function TractMap({ tracts, loading }) {
               key={t.tract_id}
               onClick={() => {
                 setSelected(t);
+                onSelectTract?.(t);
                 setViewState(v => ({ ...v, longitude: t.lon, latitude: t.lat, zoom: 12 }));
               }}
               style={{

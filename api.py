@@ -525,19 +525,37 @@ async def chat(payload: dict = Body(...)):
     if not github_token:
         return {"reply": "GITHUB_TOKEN not set in environment. Add it to your .env file."}
 
-    message  = payload.get("message", "")
-    tract    = payload.get("tract", {})
-    params   = payload.get("params", {})
-    sim_data = payload.get("simData", {})
+    message    = payload.get("message", "")
+    tract      = payload.get("tract", {})
+    params     = payload.get("params", {})
+    sim_data   = payload.get("simData", {})
+    all_tracts = payload.get("allTracts", [])
 
     pop = tract.get('population')
     income = tract.get('median_income', 0) or 0
     emergency = sim_data.get('emergency_fund', 0) or 0
 
+    tract_selected = bool(tract.get('name'))
+
+    # Build compact all-tracts table (sorted by exodus_prob desc)
+    sorted_tracts = sorted(all_tracts, key=lambda t: t.get('exodus_prob', 0), reverse=True)
+    tracts_table = "\n".join([
+        f"  {t.get('name','?')}: pop={t.get('population','?')}, income=${t.get('median_income',0):,}, "
+        f"EJ={t.get('ej_percentile','?')}%, coastal={t.get('coastal_jobs_pct','?')}%, "
+        f"exodus={round((t.get('exodus_prob',0) or 0)*100,1)}%, vuln={t.get('vulnerability','?')}, "
+        f"flood={'yes' if t.get('flood_zone') else 'no'}, poverty={t.get('poverty_pct','?')}%"
+        for t in sorted_tracts
+    ]) if sorted_tracts else "  (not loaded yet)"
+
+    tract_selected = bool(tract.get('name'))
+
     system_prompt = f"""You are a coastal resilience policy analyst for Santa Barbara County, California.
 You have access to real-time data from the Coastal Labor-Resilience Engine dashboard.
 
-CURRENT TRACT: {tract.get('name', 'Unknown')}
+ALL 109 CENSUS TRACTS (sorted by exodus risk, highest first):
+{tracts_table}
+
+SELECTED TRACT: {tract.get('name', 'None (no tract clicked on map)')}
 - Population: {f"{pop:,}" if isinstance(pop, (int, float)) else 'N/A'}
 - EJ Burden Percentile: {tract.get('ej_percentile', 'N/A')}%
 - Median Household Income: ${income:,.0f}
@@ -557,7 +575,11 @@ SIMULATION RESULTS:
 - Labor Flight: {sim_data.get('labor_flight_pct', 'N/A')}%
 - Emergency Fund: ${emergency:,.0f}
 
-Answer questions concisely and specifically using this data. Focus on actionable policy insights."""
+INSTRUCTIONS:
+- You have ALL tract data in the table above — use it to answer questions about any specific tract by name without requiring the user to click anything.
+- If a SELECTED TRACT is shown, prioritize its data for context.
+- Answer concisely and specifically. Focus on actionable policy insights.
+- When comparing tracts or ranking by risk, use the full table above."""
 
     try:
         client = OpenAI(

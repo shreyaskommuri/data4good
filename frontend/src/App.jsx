@@ -186,7 +186,7 @@ export default function App() {
           marginBottom: 24,
         }}>
           <ControlPanel params={localParams} onChange={setLocalParams} />
-          <TractMap tracts={tracts.data} loading={tracts.loading} />
+          <TractMap tracts={tracts.data} loading={tracts.loading} onSelectTract={setSelectedTract} />
         </div>
 
         {/* Recovery forecast */}
@@ -237,7 +237,7 @@ export default function App() {
         </div>
 
         {/* AI Chatbot (floating) */}
-        <ChatPanel params={params} simData={sim.data} selectedTract={selectedTract} />
+        <ChatPanel params={params} simData={sim.data} selectedTract={selectedTract} allTracts={tracts.data} />
 
         {/* Footer */}
         <footer style={{
