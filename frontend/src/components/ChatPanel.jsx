@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { MessageCircle, X, Send, Bot, User, Loader } from 'lucide-react';
+import { MessageCircle, X, Send, Bot, User, Loader, MapPin } from 'lucide-react';
 import { sendChat } from '../api';
 
 function Message({ msg }) {
@@ -52,12 +52,12 @@ function Message({ msg }) {
   );
 }
 
-export default function ChatPanel({ params, simData, selectedTract }) {
+export default function ChatPanel({ params, simData, selectedTract, allTracts }) {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
-      content: "Hi! I'm your Santa Barbara County resilience analyst. Select a tract on the map and ask me anything — policy options, budget allocation, risk factors, or recovery strategies.",
+      content: "Hi! I'm your Santa Barbara County resilience analyst. I have data on all 109 census tracts loaded — ask me about any tract by name, compare risk levels, or explore policy options.\n\nTip: click a tract on the map to set it as the focus for deeper context.",
     },
   ]);
   const [input, setInput] = useState('');
@@ -75,7 +75,7 @@ export default function ChatPanel({ params, simData, selectedTract }) {
     setMessages(prev => [...prev, { role: 'user', content: text }]);
     setLoading(true);
     try {
-      const data = await sendChat(text, selectedTract || {}, params || {}, simData || {});
+      const data = await sendChat(text, selectedTract || {}, params || {}, simData || {}, allTracts || []);
       setMessages(prev => [...prev, { role: 'assistant', content: data.reply }]);
     } catch (err) {
       setMessages(prev => [...prev, {
@@ -171,7 +171,27 @@ export default function ChatPanel({ params, simData, selectedTract }) {
             overflowY: 'auto',
             padding: '14px 14px 0',
           }}>
-            {messages.map((msg, i) => <Message key={i} msg={msg} />)}
+            {/* No tract selected — soft hint only */}
+          {!selectedTract && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '8px 12px',
+              marginBottom: 10,
+              borderRadius: 8,
+              background: 'rgba(59,130,246,0.06)',
+              border: '1px solid rgba(59,130,246,0.15)',
+              fontSize: '12px',
+              color: '#93c5fd',
+            }}>
+              <MapPin size={12} style={{ flexShrink: 0 }} />
+              Click a tract on the map to set it as focus
+            </div>
+          )}
+
+          {/* Messages */}
+          {messages.map((msg, i) => <Message key={i} msg={msg} />)}
             {loading && (
               <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 }}>
                 <div style={{
