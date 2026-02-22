@@ -11,6 +11,7 @@ import HousingPanel from './components/HousingPanel';
 import WorkforcePanel from './components/WorkforcePanel';
 import NoaaPanel from './components/NoaaPanel';
 import PolicySection from './components/PolicySection';
+import PDFExportButton from './components/PDFExportButton';
 
 import { Shield, Database, Clock } from 'lucide-react';
 
@@ -24,6 +25,8 @@ export default function App() {
     K: 0.95,
     sim_days: 365,
   });
+  
+  const [selectedTract, setSelectedTract] = useState(null);
 
   // Debounced params that trigger API calls
   const [params, setParams] = useState(localParams);
@@ -219,6 +222,19 @@ export default function App() {
 
         {/* Policy */}
         <PolicySection sim={sim.data} />
+
+        {/* PDF Export Button */}
+        <div style={{
+          marginTop: 32,
+          padding: '24px',
+          backgroundColor: 'rgba(255, 255, 255, 0.02)',
+          border: '1px solid rgba(255, 255, 255, 0.08)',
+          borderRadius: '12px',
+          display: 'flex',
+          justifyContent: 'center',
+        }}>
+          <PDFExportButton params={params} simData={sim.data} tracts={tracts.data} selectedTract={selectedTract} onSelectTract={setSelectedTract} />
+        </div>
 
         {/* Footer */}
         <footer style={{
