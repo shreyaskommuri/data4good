@@ -7,6 +7,7 @@ import {
   MapPin,
   Sparkles,
 } from 'lucide-react';
+import Tooltip from './Tooltip';
 
 const RISK_STYLES = {
   Low: { color: '#34d399', bg: 'rgba(52,211,153,0.12)' },
@@ -81,16 +82,14 @@ export default function EconomicImpactPanel({ impact, loading }) {
           <Activity size={18} />
         </div>
         <div style={{ flex: 1 }}>
-          <div className="impact-title">Recovery Risk</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div className="impact-title">Recovery Risk</div>
+            <Tooltip content="We simulate multiple shock scenarios and combine recovery dynamics with workforce transition pressure to produce a <strong>0–100 recovery risk score</strong> for each tract. Higher scores indicate communities that are likely to recover more slowly after a climate shock." />
+          </div>
           <div className="impact-subtitle">
             Which communities are most likely to recover slowly after a climate shock?
           </div>
         </div>
-      </div>
-
-      {/* Clear Explainer */}
-      <div className="impact-explainer">
-        We simulate multiple shock scenarios and combine recovery dynamics with workforce transition pressure to produce a <strong>0–100 recovery risk score</strong> for each tract.
       </div>
 
       {/* Main Score with Context */}

@@ -103,16 +103,16 @@ const KPIHeader = memo(function KPIHeader({ sim, loading }) {
         flexWrap: 'wrap',
       }}>
         <div style={{ position: 'relative' }}>
-          <div style={{
-            fontSize: '4.5rem',
-            fontWeight: 900,
-            letterSpacing: '-0.04em',
-            lineHeight: 1,
-            background: `linear-gradient(135deg, ${color}, ${color}88)`,
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            transition: 'background 0.4s ease-out',
-          }}>
+          <div 
+            style={{
+              fontSize: '4.5rem',
+              fontWeight: 900,
+              letterSpacing: '-0.04em',
+              lineHeight: 1,
+              color: color,
+              transition: 'color 0.4s ease-out',
+            }}
+          >
             <AnimatedNumber
               value={score * 100}
               format={(v) => v.toFixed(0)}
@@ -125,8 +125,12 @@ const KPIHeader = memo(function KPIHeader({ sim, loading }) {
             textTransform: 'uppercase',
             letterSpacing: '0.1em',
             marginTop: 4,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
           }}>
             Resilience Score
+            <Tooltip content="Santa Barbara County's ability to maintain coastal employment through climate disruption. Based on ODE labor-flow modeling across <strong>109 census tracts</strong>." />
           </div>
         </div>
         <div>
@@ -147,16 +151,6 @@ const KPIHeader = memo(function KPIHeader({ sim, loading }) {
             <Activity size={14} className="pulse" />
             {statusLabel(score)}
           </div>
-          <p style={{
-            color: 'var(--text-secondary)',
-            fontSize: '0.9rem',
-            maxWidth: 420,
-            lineHeight: 1.6,
-          }}>
-            Santa Barbara County's ability to maintain coastal employment
-            through climate disruption. Based on ODE labor-flow modeling
-            across <strong style={{ color: 'var(--text-primary)' }}>109 census tracts</strong>.
-          </p>
         </div>
       </div>
 

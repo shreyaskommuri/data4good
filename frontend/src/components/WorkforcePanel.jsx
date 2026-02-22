@@ -3,6 +3,7 @@ import { Users, ArrowRightLeft, Briefcase, MapPin, X, Zap } from 'lucide-react';
 import TransitionSankey from './TransitionSankey';
 import IndustryBubbles from './IndustryBubbles';
 import WorkforceAtRiskGauge from './ClimateExposureGauge';
+import Tooltip from './Tooltip';
 
 export default function WorkforcePanel({ workforce, loading, projected, severity = 0.5 }) {
   const [selectedIndustry, setSelectedIndustry] = useState(null);
@@ -33,8 +34,9 @@ export default function WorkforcePanel({ workforce, loading, projected, severity
           <Users size={18} />
         </span>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: '1.1rem', fontWeight: 700 }}>
+          <div style={{ fontSize: '1.1rem', fontWeight: 700, display: 'flex', alignItems: 'center' }}>
             Workforce Intelligence
+            <Tooltip content="Click any <strong>industry bubble</strong> to filter the chord diagram and see exactly where those workers transition. The <strong style='color: #f43f5e'>red numbers</strong> show projected job losses under the current shock scenario when severity is increased." />
           </div>
           <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
             Live Data Technologies · {stats.total_workers?.toLocaleString() || 0} workers · {stats.total_transitions?.toLocaleString() || 0} transitions
@@ -53,16 +55,6 @@ export default function WorkforcePanel({ workforce, loading, projected, severity
           >
             <X size={12} /> Clear filter
           </button>
-        )}
-      </div>
-
-      <div className="explanation">
-        Click any <strong>industry bubble</strong> to filter the chord diagram and see
-        exactly where those workers transition.
-        {hasImpact ? (
-          <> The <strong style={{ color: '#f43f5e' }}>red numbers</strong> show projected job losses under the current shock scenario.</>
-        ) : (
-          <> Increase storm severity to see projected workforce displacement.</>
         )}
       </div>
 

@@ -1,9 +1,10 @@
 import React from 'react';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
   ResponsiveContainer, Cell,
 } from 'recharts';
 import { Home } from 'lucide-react';
+import Tooltip from './Tooltip';
 
 const PRESSURE_COLORS = {
   Critical: '#f43f5e',
@@ -120,22 +121,14 @@ export default function HousingPanel({ housing, loading }) {
           <Home size={18} />
         </span>
         <div>
-          <div style={{ fontSize: '1.1rem', fontWeight: 700 }}>
+          <div style={{ fontSize: '1.1rem', fontWeight: 700, display: 'flex', alignItems: 'center' }}>
             Housing Pressure Index
+            <Tooltip content="This index scores each jurisdiction from <strong>0 (no pressure) to 100 (extreme pressure)</strong> based on how much housing supply constrains climate resilience. It combines four factors: how far behind a jurisdiction is on state-mandated housing targets (40%), the shortage of affordable units (30%), over-reliance on ADUs instead of multi-family housing (15%), and rental market tightness (15%). A higher score means <strong>fewer housing options for displaced workers</strong> after a climate event." />
           </div>
           <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
             SBCAG 2024 APR data · {stats.total_jurisdictions || 0} jurisdictions
           </div>
         </div>
-      </div>
-
-      {/* Explanation */}
-      <div className="explanation">
-        This index scores each jurisdiction from <strong>0 (no pressure) to 100 (extreme pressure)</strong> based
-        on how much housing supply constrains climate resilience. It combines four factors: how far behind
-        a jurisdiction is on state-mandated housing targets (40%), the shortage of affordable units (30%),
-        over-reliance on ADUs instead of multi-family housing (15%), and rental market tightness (15%).
-        A higher score means <strong>fewer housing options for displaced workers</strong> after a climate event.
       </div>
 
       {noData ? (
@@ -233,7 +226,7 @@ export default function HousingPanel({ housing, loading }) {
                 tickLine={false}
                 axisLine={false}
               />
-              <Tooltip content={<CustomTooltip />} />
+              <RechartsTooltip content={<CustomTooltip />} />
               <Bar dataKey="housing_pressure_index" radius={[0, 6, 6, 0]} name="Housing Pressure" barSize={20}>
                 {sortedPressure.map((entry, idx) => (
                   <Cell

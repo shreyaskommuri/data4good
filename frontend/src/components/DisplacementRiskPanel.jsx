@@ -1,5 +1,6 @@
 import React from 'react';
 import { AlertTriangle, TrendingUp, MapPin, Briefcase } from 'lucide-react';
+import Tooltip from './Tooltip';
 
 export default function DisplacementRiskPanel({ risk, loading }) {
   if (loading) {
@@ -25,18 +26,14 @@ export default function DisplacementRiskPanel({ risk, loading }) {
           <AlertTriangle size={18} />
         </span>
         <div>
-          <div style={{ fontSize: '1.1rem', fontWeight: 700 }}>
+          <div style={{ fontSize: '1.1rem', fontWeight: 700, display: 'flex', alignItems: 'center' }}>
             Displacement Risk Model
+            <Tooltip content="Machine learning model predicts which workers are most likely to be <strong>displaced</strong> from coastal counties or climate-sensitive industries. Based on job history, industry exposure, and tenure patterns." />
           </div>
           <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
             XGBoost ML · {risk?.total_workers || 0} workers analyzed
           </div>
         </div>
-      </div>
-
-      <div className="explanation">
-        Machine learning model predicts which workers are most likely to be <strong>displaced</strong> from
-        coastal counties or climate-sensitive industries. Based on job history, industry exposure, and tenure patterns.
       </div>
 
       {noData ? (
