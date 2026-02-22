@@ -14,6 +14,12 @@ import pandas as pd
 from typing import Optional
 import json, os
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 from src.models.markov_chain import (
     MarkovTransitionMatrix, LaborState, ShockParameters,
     STATE_INDEX, create_regional_chain
@@ -425,6 +431,71 @@ def api_markov(severity: float = 0.5, duration: int = 21):
             'stayed_coastal': 70, 'to_inland': 15,
             'to_unemployed': 10, 'to_transitioning': 5,
         }
+
+
+# ── GitHub Models (Copilot) Chat ─────────────────────────────────────────────────
+from fastapi import Body
+from openai import OpenAI
+
+@app.post("/api/chat")
+async def chat(payload: dict = Body(...)):
+    github_token = os.environ.get("GITHUB_TOKEN", "")
+    if not github_token:
+        return {"reply": "GITHUB_TOKEN not set in environment. Add it to your .env file."}
+
+    message  = payload.get("message", "")
+    tract    = payload.get("tract", {})
+    params   = payload.get("params", {})
+    sim_data = payload.get("simData", {})
+
+    pop = tract.get('population')
+    income = tract.get('median_income', 0) or 0
+    emergency = sim_data.get('emergency_fund', 0) or 0
+
+    system_prompt = f"""You are a coastal resilience policy analyst for Santa Barbara County, California.
+You have access to real-time data from the Coastal Labor-Resilience Engine dashboard.
+
+CURRENT TRACT: {tract.get('name', 'Unknown')}
+- Population: {f"{pop:,}" if isinstance(pop, (int, float)) else 'N/A'}
+- EJ Burden Percentile: {tract.get('ej_percentile', 'N/A')}%
+- Median Household Income: ${income:,.0f}
+- Coastal Jobs: {tract.get('coastal_jobs_pct', 'N/A')}%
+- Exodus Probability: {round((tract.get('exodus_prob', 0) or 0) * 100, 1)}%
+
+CURRENT SCENARIO:
+- Storm Severity: {round((params.get('severity', 0.5)) * 100)}%
+- Duration: {params.get('duration', 21)} days
+- Recovery Rate (r): {params.get('r', 0.1)}
+- Carrying Capacity (K): {round((params.get('K', 0.95)) * 100)}%
+
+SIMULATION RESULTS:
+- Resilience Score: {sim_data.get('resilience_score', 'N/A')}
+- Recovery Time: {round(sim_data.get('recovery_time', 0) or 0)} days
+- Min Labor Force: {round((sim_data.get('min_labor_force', 0) or 0) * 100, 1)}%
+- Labor Flight: {sim_data.get('labor_flight_pct', 'N/A')}%
+- Emergency Fund: ${emergency:,.0f}
+
+Answer questions concisely and specifically using this data. Focus on actionable policy insights."""
+
+    try:
+        client = OpenAI(
+            base_url="https://models.inference.ai.azure.com",
+            api_key=github_token,
+        )
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": message},
+            ],
+            max_tokens=512,
+        )
+        return {"reply": response.choices[0].message.content}
+    except Exception as e:
+        err = str(e)
+        if '429' in err:
+            return {"reply": "Rate limit reached. Please try again in a moment."}
+        return {"reply": f"Chat error: {err}"}
 
 
 # Serve React build if it exists

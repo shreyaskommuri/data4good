@@ -26,10 +26,12 @@ Real-time modeling of coastal labor resilience for Santa Barbara County. This da
 ### 1) Install Backend Dependencies
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
+python3 -m venv venv
+source venv/bin/activate
 pip install -r requirements.txt
 ```
+
+> **Note:** The venv folder is named `venv`, not `.venv`.
 
 ### 2) Install Frontend Dependencies
 
@@ -39,20 +41,49 @@ npm install
 cd ..
 ```
 
-### 3) Run
+### 3) Configure Environment Variables
+
+Copy `.env` and fill in your credentials:
+
+```bash
+cp .env .env.local   # optional, .env works directly
+```
+
+Open `.env` and set:
+
+```env
+# Required for the AI Chatbot
+# Create a free classic PAT at https://github.com/settings/tokens
+# Select "Classic token" with NO scopes checked
+GITHUB_TOKEN=ghp_your_token_here
+```
+
+> **Chatbot** uses the [GitHub Models API](https://github.com/marketplace/models) (free, 150 req/day) — powered by GPT-4o mini via your GitHub token.
+
+### 4) Install PDF Export Dependencies (Frontend)
+
+The PDF export button requires two extra packages:
+
+```bash
+cd frontend
+npm install jspdf html2canvas
+cd ..
+```
+
+### 5) Run
 
 Open two terminals:
 
 **Terminal 1 — Backend (FastAPI)**
 ```bash
-cd /path/to/data4good
+source venv/bin/activate
 uvicorn api:app --reload --port 8000
 ```
 
 **Terminal 2 — Frontend (React/Vite)**
 ```bash
-cd /path/to/data4good/frontend
-npx vite --port 5173
+cd frontend
+npm run dev
 ```
 
 Then open **http://localhost:5173** in your browser.
@@ -89,7 +120,9 @@ data4good/
 │   │       ├── HousingPanel.jsx   # Housing Pressure Index
 │   │       ├── WorkforcePanel.jsx # Live Data workforce intel
 │   │       ├── NoaaPanel.jsx      # NOAA sea level data
-│   │       └── PolicySection.jsx  # Auto-generated recommendations
+│   │       ├── PolicySection.jsx  # Auto-generated recommendations
+│   │       ├── ChatPanel.jsx      # AI policy chatbot (GitHub Models)
+│   │       └── PDFExportButton.jsx # PDF report export
 │   ├── vite.config.js         # Vite config with API proxy
 │   └── package.json
 ├── src/
@@ -113,8 +146,10 @@ data4good/
 | `GET /api/simulation/compare?...` | Recovery curves by EJ burden level |
 | `GET /api/noaa` | NOAA water level observations |
 | `GET /api/workforce` | Live Data Technologies workforce data |
+| `GET /api/workforce/projected?severity=&duration=` | Projected workforce shifts under shock |
 | `GET /api/housing` | Housing Pressure Index by jurisdiction |
 | `GET /api/markov?severity=&duration=` | Markov chain transition probabilities |
+| `POST /api/chat` | AI policy chatbot (GitHub Models / GPT-4o mini) |
 
 ## Key Metrics
 

@@ -49,3 +49,17 @@ export async function getHousing() {
 export async function getMarkov(severity = 0.5, duration = 21) {
   return fetchJSON(`/api/markov?severity=${severity}&duration=${duration}`);
 }
+
+export async function getWorkforceProjected(severity = 0.5, duration = 21) {
+  return fetchJSON(`/api/workforce/projected?severity=${severity}&duration=${duration}`);
+}
+
+export async function sendChat(message, tract, params, simData) {
+  const res = await fetch(`${API}/api/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message, tract, params, simData }),
+  });
+  if (!res.ok) throw new Error(`Chat API failed: ${res.status}`);
+  return res.json();
+}
