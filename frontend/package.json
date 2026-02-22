@@ -13,6 +13,8 @@
     "@deck.gl/layers": "^9.2.9",
     "@deck.gl/react": "^9.2.9",
     "deck.gl": "^9.2.9",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^4.2.0",
     "lucide-react": "^0.575.0",
     "maplibre-gl": "^5.18.0",
     "react": "^19.2.0",
