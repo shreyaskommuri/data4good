@@ -6,7 +6,6 @@ import Tooltip from './Tooltip';
 
 const VULN_HEX = {
   Critical: '#f43f5e',
-  High: '#fb923c',
   Moderate: '#fbbf24',
   Low: '#34d399',
 };
@@ -17,12 +16,8 @@ const DARK_STYLE = {
   name: 'Dark',
   sources: {
     'carto-dark': {
-      type: 'raster',
-      tiles: [
-        'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
         'https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
-        'https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
-      ],
+                setViewState(v => ({ ...v, longitude: item.lon, latitude: item.lat, zoom: 12 }));
       tileSize: 256,
       attribution: '&copy; CARTO &copy; OSM',
     },
@@ -60,7 +55,7 @@ function tractsToGeoJSON(tracts, impactMap, mode) {
   };
 }
 
-export default function TractMap({ tracts, loading, economicImpact }) {
+export default function TractMap({ tracts, loading, economicImpact, onSelectTract }) {
   const [hovered, setHovered] = useState(null);
   const [selected, setSelected] = useState(null);
   const [mode, setMode] = useState('exodus');
@@ -108,11 +103,14 @@ export default function TractMap({ tracts, loading, economicImpact }) {
   const handleClick = useCallback((e) => {
     const f = e.features?.[0];
     if (f) {
-      setSelected({ ...f.properties, lon: e.lngLat.lng, lat: e.lngLat.lat });
+      const tract = { ...f.properties, lon: e.lngLat.lng, lat: e.lngLat.lat };
+      setSelected(tract);
+      onSelectTract?.(tract);
     } else {
       setSelected(null);
+      onSelectTract?.(null);
     }
-  }, []);
+  }, [onSelectTract]);
 
   const handleHover = useCallback((e) => {
     if (e.features?.length) {
@@ -291,7 +289,7 @@ export default function TractMap({ tracts, loading, economicImpact }) {
               longitude={selected.lon}
               latitude={selected.lat}
               anchor="bottom"
-              onClose={() => setSelected(null)}
+              onClose={() => { setSelected(null); onSelectTract?.(null); }}
               closeButton={true}
               closeOnClick={false}
               maxWidth="280px"
@@ -411,6 +409,7 @@ export default function TractMap({ tracts, loading, economicImpact }) {
                     }
                   : t;
                 setSelected(item);
+                onSelectTract?.(item);
                 setViewState(v => ({ ...v, longitude: item.lon, latitude: item.lat, zoom: 12 }));
               }}
               style={{

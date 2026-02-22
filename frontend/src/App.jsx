@@ -13,6 +13,7 @@ import NoaaPanel from './components/NoaaPanel';
 import PolicySection from './components/PolicySection';
 import PDFExportButton from './components/PDFExportButton';
 import EconomicImpactPanel from './components/EconomicImpactPanel';
+import ChatPanel from './components/ChatPanel';
 
 import { Shield, Database, Clock } from 'lucide-react';
 
@@ -190,6 +191,7 @@ export default function App() {
           <TractMap
             tracts={tracts.data}
             loading={tracts.loading}
+            onSelectTract={setSelectedTract}
             economicImpact={economicImpact.data}
           />
         </div>
@@ -245,6 +247,9 @@ export default function App() {
         }}>
           <PDFExportButton params={params} simData={sim.data} tracts={tracts.data} selectedTract={selectedTract} onSelectTract={setSelectedTract} />
         </div>
+
+        {/* AI Chatbot (floating) */}
+        <ChatPanel params={params} simData={sim.data} selectedTract={selectedTract} allTracts={tracts.data} />
 
         {/* Footer */}
         <footer style={{
