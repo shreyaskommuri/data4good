@@ -621,6 +621,198 @@ def create_prompt_experiments(
 
 
 # ============================================================================
+# Legislative Memo Generator
+# ============================================================================
+
+def generate_board_agenda_letter(
+    tract_name: str,
+    supervisor_name: str,
+    district: int,
+    optimized_budget: float,
+    workers_to_reskill: int,
+    beta_before: float,
+    beta_after: float,
+    recovery_time_before: float,
+    recovery_time_after: float,
+    ej_percentile: float,
+    team_name: str = "Coastal Labor-Resilience Engine",
+) -> str:
+    """
+    Generate a formal Board of Supervisors Agenda Letter for the
+    March 10 2026 EJ Element vote, citing optimized budget results
+    from the CAP Consistency Optimizer (Task 2).
+
+    Attempts LLM generation via OpenAI; falls back to a deterministic
+    template if the API is unavailable.
+    """
+    from datetime import date
+
+    today = date.today().strftime("%B %d, %Y")
+    improvement_days = round(recovery_time_before - recovery_time_after, 1)
+    beta_reduction_pct = round((1 - beta_after / beta_before) * 100, 1) if beta_before > 0 else 0
+
+    header = (
+        "COUNTY OF SANTA BARBARA\n"
+        "BOARD OF SUPERVISORS AGENDA LETTER\n"
+        f"{'=' * 52}\n\n"
+        f"TO:       Board of Supervisors\n"
+        f"FROM:     {team_name} Analytics\n"
+        f"DATE:     {today}\n"
+        f"SUBJECT:  Urgent Resource Allocation for EJ Element\n"
+        f"          Adoption — {tract_name}\n\n"
+        f"{'=' * 52}\n\n"
+    )
+
+    # --- try LLM body ---
+    body = None
+    try:
+        import openai
+        import os
+
+        api_key = os.getenv("OPENAI_API_KEY")
+        if api_key:
+            client = openai.OpenAI(api_key=api_key)
+            system_msg = (
+                "You are a senior government policy analyst drafting a formal "
+                "Board of Supervisors agenda letter for Santa Barbara County. "
+                "Write a professional, evidence-based body paragraph (200-250 words). "
+                "Do NOT include the header — only the body text. "
+                "Cite specific numbers provided. Use formal legislative tone."
+            )
+            user_msg = (
+                f"Draft the body for a Board Agenda Letter regarding {tract_name} "
+                f"(EJ percentile: {ej_percentile}th, Supervisorial District {district}, "
+                f"Supervisor {supervisor_name}).\n\n"
+                f"Key findings from our resilience model:\n"
+                f"- Current recovery time after a climate shock: {recovery_time_before} days\n"
+                f"- Projected recovery time with green re-skilling: {recovery_time_after} days\n"
+                f"- Improvement: {improvement_days} days faster recovery\n"
+                f"- EJ friction coefficient reduced by {beta_reduction_pct}%\n"
+                f"- Workers to re-skill: {workers_to_reskill:,}\n"
+                f"- Recommended budget allocation: ${optimized_budget:,.0f}\n\n"
+                f"The letter should urge the Board to adopt the EJ Element on "
+                f"March 10, 2026 and allocate the recommended funding for green "
+                f"workforce transition in this community under CAP Measure CP-1."
+            )
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": system_msg},
+                    {"role": "user", "content": user_msg},
+                ],
+                temperature=0.3,
+                max_tokens=400,
+            )
+            body = response.choices[0].message.content.strip()
+    except Exception:
+        pass
+
+    if body is None:
+        body = (
+            f"Honorable Members of the Board,\n\n"
+            f"Pursuant to Senate Bill 1000 and the County's 2030 Climate Action "
+            f"Plan (Measure CP-1), this letter presents an evidence-based "
+            f"recommendation for resource allocation to the {tract_name} "
+            f"Environmental Justice Community (EJ percentile: {ej_percentile}th, "
+            f"District {district}).\n\n"
+            f"Our Coastal Labor-Resilience Engine analysis, calibrated with "
+            f"Census Bureau demographic data, NOAA coastal hazard observations, "
+            f"and Live Data Technologies workforce records, indicates that "
+            f"{tract_name} currently faces a projected recovery period of "
+            f"{recovery_time_before:.0f} days following a moderate climate "
+            f"shock event — significantly exceeding the county average.\n\n"
+            f"By investing ${optimized_budget:,.0f} to re-skill {workers_to_reskill:,} "
+            f"climate-sensitive workers into green technology and resilient "
+            f"sectors, the model projects recovery time will decrease to "
+            f"{recovery_time_after:.0f} days — an improvement of "
+            f"{improvement_days:.0f} days. This intervention reduces the "
+            f"community's EJ friction coefficient (beta) by {beta_reduction_pct:.1f}%, "
+            f"directly strengthening long-term labor market resilience.\n\n"
+            f"RECOMMENDATION: The Board should adopt the Environmental Justice "
+            f"Element on March 10, 2026 and appropriate ${optimized_budget:,.0f} "
+            f"from the Climate Action Fund for green workforce re-skilling in "
+            f"{tract_name}.\n\n"
+            f"Respectfully submitted,\n"
+            f"{team_name} Analytics"
+        )
+
+    return header + body
+
+
+def generate_public_comment(
+    tract_name: str,
+    supervisor_name: str,
+    district: int,
+    recovery_time: float,
+    ej_percentile: float,
+    exodus_prob: float,
+    dl_dt: float,
+    housing_pressure: float = 0.0,
+) -> str:
+    """
+    Generate a 150-word evidence-based public comment for a resident
+    to email to their County Supervisor regarding the March 10 EJ vote.
+
+    Attempts LLM generation; falls back to a deterministic template.
+    """
+    comment = None
+    try:
+        import openai
+        import os
+
+        api_key = os.getenv("OPENAI_API_KEY")
+        if api_key:
+            client = openai.OpenAI(api_key=api_key)
+            prompt = (
+                f"Write a 150-word professional public comment from a concerned "
+                f"resident of {tract_name}, Santa Barbara County, to Supervisor "
+                f"{supervisor_name} (District {district}) regarding the March 10, "
+                f"2026 Environmental Justice Element vote.\n\n"
+                f"Data to cite:\n"
+                f"- Neighborhood recovery time after climate shock: {recovery_time:.0f} days\n"
+                f"- EJ burden percentile: {ej_percentile}th\n"
+                f"- Workforce exodus probability: {exodus_prob:.0%}\n"
+                f"- Labor force decline rate (dL/dt): {dl_dt:.4f} per day\n"
+                f"- Housing pressure index: {housing_pressure:.1f}/100\n\n"
+                f"Tone: professional, urgent, personal. Urge adoption of the EJ Element."
+            )
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.5,
+                max_tokens=250,
+            )
+            comment = response.choices[0].message.content.strip()
+    except Exception:
+        pass
+
+    if comment is None:
+        comment = (
+            f"Dear Supervisor {supervisor_name},\n\n"
+            f"As a resident of {tract_name} in District {district}, I urge you "
+            f"to vote YES on the Environmental Justice Element on March 10, 2026. "
+            f"Our neighborhood faces a projected {recovery_time:.0f}-day recovery "
+            f"period following a climate shock — well above the county average. "
+            f"With an EJ burden at the {ej_percentile}th percentile and a "
+            f"workforce exodus probability of {exodus_prob:.0%}, our community "
+            f"is disproportionately vulnerable. Labor force data shows a decline "
+            f"rate of {dl_dt:.4f} per day during shock events. "
+        )
+        if housing_pressure > 0:
+            comment += (
+                f"Combined with a housing pressure index of {housing_pressure:.0f}/100, "
+                f"these conditions demand immediate action. "
+            )
+        comment += (
+            f"Please allocate dedicated funding for green workforce re-skilling "
+            f"and resilience infrastructure in our community.\n\n"
+            f"Respectfully,\nA Concerned Resident of {tract_name}"
+        )
+
+    return comment
+
+
+# ============================================================================
 # Main - Demo RapidFire Execution
 # ============================================================================
 

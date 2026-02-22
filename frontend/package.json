@@ -12,6 +12,11 @@
   "dependencies": {
     "@deck.gl/layers": "^9.2.9",
     "@deck.gl/react": "^9.2.9",
+    "@nivo/chord": "^0.99.0",
+    "@nivo/circle-packing": "^0.99.0",
+    "@nivo/core": "^0.99.0",
+    "@nivo/sankey": "^0.99.0",
+    "@nivo/tooltip": "^0.99.0",
     "deck.gl": "^9.2.9",
     "lucide-react": "^0.575.0",
     "maplibre-gl": "^5.18.0",

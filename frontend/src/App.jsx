@@ -69,6 +69,12 @@ export default function App() {
   const workforce = useApi(() => api.getWorkforce(), []);
   const housing = useApi(() => api.getHousing(), []);
 
+  // Projected workforce shifts based on severity
+  const workforceProjected = useApi(
+    () => api.getWorkforceProjected(params.severity, params.duration),
+    [params.severity, params.duration]
+  );
+
   // Check if params are being debounced (localParams !== params)
   const isUpdating = useMemo(() => {
     return JSON.stringify(localParams) !== JSON.stringify(params);
@@ -203,7 +209,12 @@ export default function App() {
           marginBottom: 24,
         }}>
           <HousingPanel housing={housing.data} loading={housing.loading} />
-          <WorkforcePanel workforce={workforce.data} loading={workforce.loading} />
+          <WorkforcePanel
+            workforce={workforce.data}
+            loading={workforce.loading}
+            projected={workforceProjected.data}
+            severity={params.severity}
+          />
         </div>
 
         {/* Policy */}

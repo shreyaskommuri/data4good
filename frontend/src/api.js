@@ -49,3 +49,7 @@ export async function getHousing() {
 export async function getMarkov(severity = 0.5, duration = 21) {
   return fetchJSON(`/api/markov?severity=${severity}&duration=${duration}`);
 }
+
+export async function getWorkforceProjected(severity = 0.5, duration = 21) {
+  return fetchJSON(`/api/workforce/projected?severity=${severity}&duration=${duration}`);
+}

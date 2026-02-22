@@ -621,6 +621,99 @@ def create_ej_tract(
     return profiles.get(profile, profiles["average"])
 
 
+def optimize_policy_allocation(
+    current_beta: float,
+    ej_percentile: float,
+    sensitive_worker_count: int,
+    r: float = 0.10,
+    K: float = 0.95,
+    shock_severity: float = 0.5,
+    shock_duration: float = 21.0,
+    shock_start: float = 30.0,
+    reskill_target_pct: float = 0.10,
+    cost_per_worker: float = 12_000.0,
+    sim_days: int = 365,
+) -> Dict[str, float]:
+    """
+    CAP Measure CP-1 "Green Technology Workforce" optimizer.
+
+    Computes the budget to re-skill a fraction of climate-sensitive workers
+    into resilient sectors and quantifies the resulting beta (EJ friction)
+    reduction and recovery-time improvement.
+
+    Uses scipy.optimize.minimize_scalar to find the optimal reskill
+    percentage in [0.05, 0.30] that minimises recovery time.
+
+    Args:
+        current_beta:           Current EJ friction coefficient.
+        ej_percentile:          Tract EJ percentile (0-100).
+        sensitive_worker_count: Workers in climate-sensitive industries.
+        r:                      ODE recovery rate.
+        K:                      ODE carrying capacity.
+        shock_severity:         Climate shock severity (0-1).
+        shock_duration:         Shock duration in days.
+        shock_start:            Shock start day.
+        reskill_target_pct:     Default fraction of workers to reskill.
+        cost_per_worker:        Unit cost of green re-skilling (USD).
+        sim_days:               Simulation horizon in days.
+
+    Returns:
+        Dict with budget, beta changes, recovery-time changes.
+    """
+    from scipy.optimize import minimize_scalar
+
+    def _recovery_time_for_pct(pct: float) -> float:
+        """Run ODE with a reduced beta and return recovery time."""
+        reduction_factor = 1.0 - pct * (ej_percentile / 100.0)
+        new_beta = current_beta * max(reduction_factor, 0.1)
+        params = ODEParameters(r=r, K=K, beta=new_beta)
+        ode = ResilienceODE(params)
+        ode.add_shock(ClimateShock(
+            start_time=shock_start,
+            duration=shock_duration,
+            severity=shock_severity,
+            K_reduction=0.3 * shock_severity,
+            beta_increase=0.02 * shock_severity,
+        ))
+        sol = ode.solve(L0=0.92, t_span=(0, sim_days), n_points=200)
+        return sol.recovery_time if sol.recovery_time is not None else float(sim_days)
+
+    # --- baseline recovery time ---
+    recovery_before = _recovery_time_for_pct(0.0)
+
+    # --- find optimal reskill percentage ---
+    result = minimize_scalar(
+        _recovery_time_for_pct,
+        bounds=(0.05, 0.30),
+        method="bounded",
+    )
+    optimal_pct = float(result.x)
+    recovery_after_optimal = float(result.fun)
+
+    # --- also compute the result at the requested default pct ---
+    recovery_after_target = _recovery_time_for_pct(reskill_target_pct)
+
+    workers_to_reskill = int(sensitive_worker_count * optimal_pct)
+    total_budget = workers_to_reskill * cost_per_worker
+
+    beta_after = current_beta * max(1.0 - optimal_pct * (ej_percentile / 100.0), 0.1)
+    beta_reduction_pct = (1.0 - beta_after / current_beta) * 100.0 if current_beta > 0 else 0.0
+
+    return {
+        "optimal_reskill_pct": round(optimal_pct, 4),
+        "workers_to_reskill": workers_to_reskill,
+        "total_budget": round(total_budget, 2),
+        "cost_per_worker": cost_per_worker,
+        "beta_before": round(current_beta, 6),
+        "beta_after": round(beta_after, 6),
+        "beta_reduction_pct": round(beta_reduction_pct, 1),
+        "recovery_time_before": round(recovery_before, 1),
+        "recovery_time_after": round(recovery_after_optimal, 1),
+        "recovery_improvement_days": round(recovery_before - recovery_after_optimal, 1),
+        "recovery_at_default_target": round(recovery_after_target, 1),
+    }
+
+
 class CoupledMarkovODE:
     """
     Coupled Markov chain + ODE model.

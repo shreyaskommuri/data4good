@@ -328,41 +328,73 @@ def api_workforce():
         return _workforce_cache
 
     if not LIVE_DATA_AVAILABLE or not LIVE_DATA_DIR.exists():
-        _workforce_cache = {'persons': [], 'transitions': [], 'industries': [], 'stats': {}}
+        _workforce_cache = {'transitions': [], 'industries': [], 'stats': {},
+                            'county_distribution': {}, 'employment_breakdown': {},
+                            'climate_summary': {}}
         return _workforce_cache
 
     try:
         loader = LiveDataLoader(LIVE_DATA_DIR)
-        persons = loader.load_to_dataframe(filter_coastal=True, max_records=5000)
-        transitions = loader.get_job_transitions(filter_coastal=True, max_records=5000)
-        industries = loader.get_industry_distribution(filter_coastal=True, max_records=5000)
+        persons = loader.load_to_dataframe(filter_coastal=True, max_records=10000)
+        transitions = loader.get_job_transitions(filter_coastal=True, max_records=10000)
+        industries = loader.get_industry_distribution(filter_coastal=True, max_records=10000)
 
+        # Filter out same-industry transitions (uninteresting)
         top_transitions = []
         if transitions is not None and not transitions.empty:
-            trans_summary = transitions.groupby(['from_industry', 'to_industry']).size().reset_index(name='count')
-            trans_summary = trans_summary.nlargest(10, 'count')
+            cross_industry = transitions[transitions['from_industry'] != transitions['to_industry']].copy()
+            cross_industry = cross_industry.dropna(subset=['from_industry', 'to_industry'])
+            trans_summary = cross_industry.groupby(['from_industry', 'to_industry']).size().reset_index(name='count')
+            trans_summary = trans_summary.nlargest(15, 'count')
             top_transitions = trans_summary.to_dict(orient='records')
 
         industry_list = []
+        climate_sensitive_count = 0
+        climate_resilient_count = 0
         if industries is not None and not industries.empty:
-            industry_list = industries.head(15).to_dict(orient='records')
+            sorted_ind = industries.sort_values('count', ascending=False)
+            industry_list = sorted_ind.head(20).to_dict(orient='records')
+            climate_sensitive_count = int(sorted_ind[sorted_ind['is_climate_sensitive'] == True]['count'].sum())
+            climate_resilient_count = int(sorted_ind[sorted_ind['is_climate_sensitive'] == False]['count'].sum())
 
         county_counts = {}
         if persons is not None and not persons.empty and 'current_county' in persons.columns:
-            county_counts = persons['current_county'].value_counts().head(8).to_dict()
+            county_counts = persons['current_county'].value_counts().head(10).to_dict()
+
+        employment_breakdown = {}
+        if persons is not None and not persons.empty and 'employment_status' in persons.columns:
+            employment_breakdown = persons['employment_status'].value_counts().to_dict()
+
+        avg_job_count = 0
+        if persons is not None and not persons.empty and 'job_count' in persons.columns:
+            avg_job_count = round(float(persons['job_count'].mean()), 1)
+
+        total_workers = len(persons) if persons is not None else 0
+        total_transitions = len(transitions) if transitions is not None else 0
 
         _workforce_cache = {
             'stats': {
-                'total_workers': len(persons) if persons is not None else 0,
-                'total_transitions': len(transitions) if transitions is not None else 0,
+                'total_workers': total_workers,
+                'total_transitions': total_transitions,
+                'avg_jobs_per_worker': avg_job_count,
+                'climate_sensitive_workers': climate_sensitive_count,
+                'climate_resilient_workers': climate_resilient_count,
+                'sensitivity_pct': round(climate_sensitive_count / max(climate_sensitive_count + climate_resilient_count, 1) * 100, 1),
             },
             'transitions': top_transitions,
             'industries': industry_list,
             'county_distribution': county_counts,
+            'employment_breakdown': employment_breakdown,
+            'climate_summary': {
+                'sensitive': climate_sensitive_count,
+                'resilient': climate_resilient_count,
+            },
         }
         return _workforce_cache
-    except Exception:
-        _workforce_cache = {'persons': [], 'transitions': [], 'industries': [], 'stats': {}}
+    except Exception as e:
+        _workforce_cache = {'transitions': [], 'industries': [], 'stats': {},
+                            'county_distribution': {}, 'employment_breakdown': {},
+                            'climate_summary': {}, 'error': str(e)}
         return _workforce_cache
 
 
@@ -407,24 +439,75 @@ def api_housing():
 @app.get("/api/markov")
 def api_markov(severity: float = 0.5, duration: int = 21):
     try:
-        chain = create_regional_chain()
+        chain = MarkovTransitionMatrix()
         shock = ShockParameters(severity=severity, duration_days=duration)
-        shocked_matrix = chain.apply_shock(shock)
+        chain.apply_shock(shock)
 
-        coastal_idx = STATE_INDEX[LaborState.COASTAL_EMPLOYED]
-        row = shocked_matrix[coastal_idx]
+        to_inland = chain.get_transition_prob(LaborState.COASTAL, LaborState.INLAND)
+        to_unemployed = chain.get_transition_prob(LaborState.COASTAL, LaborState.UNEMPLOYED)
+        to_transitioning = chain.get_transition_prob(LaborState.COASTAL, LaborState.TRANSITIONING)
+        stayed = 1 - to_inland - to_unemployed - to_transitioning
 
         return {
-            'stayed_coastal': round(float(row[STATE_INDEX[LaborState.COASTAL_EMPLOYED]]) * 100, 1),
-            'to_inland': round(float(row[STATE_INDEX[LaborState.INLAND_EMPLOYED]]) * 100, 1),
-            'to_unemployed': round(float(row[STATE_INDEX[LaborState.UNEMPLOYED]]) * 100, 1),
-            'to_transitioning': round(float(row[STATE_INDEX[LaborState.TRANSITIONING]]) * 100, 1),
+            'stayed_coastal': round(stayed * 100, 1),
+            'to_inland': round(to_inland * 100, 1),
+            'to_unemployed': round(to_unemployed * 100, 1),
+            'to_transitioning': round(to_transitioning * 100, 1),
         }
     except Exception:
         return {
             'stayed_coastal': 70, 'to_inland': 15,
             'to_unemployed': 10, 'to_transitioning': 5,
         }
+
+
+@app.get("/api/workforce/projected")
+def api_workforce_projected(severity: float = 0.5, duration: int = 21):
+    """Project how the workforce shifts under a given shock severity using the Markov model."""
+    base = api_workforce()
+    if not base.get('industries'):
+        return {'industries': [], 'impact': {}}
+
+    try:
+        chain = MarkovTransitionMatrix()
+        shock = ShockParameters(severity=severity, duration_days=duration)
+        chain.apply_shock(shock)
+
+        to_unemployed = chain.get_transition_prob(LaborState.COASTAL, LaborState.UNEMPLOYED)
+        to_transitioning = chain.get_transition_prob(LaborState.COASTAL, LaborState.TRANSITIONING)
+        to_inland = chain.get_transition_prob(LaborState.COASTAL, LaborState.INLAND)
+        displacement_rate = to_unemployed + to_transitioning
+
+        projected = []
+        total_displaced = 0
+        total_absorbed = 0
+        for ind in base['industries']:
+            row = dict(ind)
+            count = row.get('count', 0)
+            if row.get('is_climate_sensitive'):
+                lost = int(count * displacement_rate)
+                row['projected_count'] = count - lost
+                row['delta'] = -lost
+                total_displaced += lost
+            else:
+                gain = int(count * to_inland * 0.3)
+                row['projected_count'] = count + gain
+                row['delta'] = gain
+                total_absorbed += gain
+            projected.append(row)
+
+        return {
+            'industries': projected,
+            'impact': {
+                'displacement_rate': round(displacement_rate * 100, 1),
+                'total_displaced': total_displaced,
+                'total_absorbed': total_absorbed,
+                'net_job_loss': total_displaced - total_absorbed,
+                'severity': severity,
+            },
+        }
+    except Exception as e:
+        return {'industries': base.get('industries', []), 'impact': {}, 'error': str(e)}
 
 
 # Serve React build if it exists
