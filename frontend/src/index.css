@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════════
-   COASTAL LABOR-RESILIENCE ENGINE — Design System
+   WAVE — Workforce Analytics & Vulnerability Engine
    Premium dark-mode dashboard
    ═══════════════════════════════════════════════════════════════════ */
 
@@ -83,6 +83,28 @@ body {
 }
 
 h1, h2, h3, h4 { font-weight: 700; letter-spacing: -0.02em; line-height: 1.2; }
+
+/* WAVE Branding */
+@keyframes waveGlow {
+  0%, 100% { 
+    box-shadow: 0 0 0 0 rgba(59,130,246,0.4);
+    opacity: 1;
+  }
+  50% { 
+    box-shadow: 0 0 12px 4px rgba(59,130,246,0.2);
+    opacity: 0.95;
+  }
+}
+
+.wave-logo {
+  animation: waveGlow 4s ease-in-out infinite;
+}
+
+.wave-logo:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 16px 6px rgba(59,130,246,0.3);
+  border-color: rgba(59,130,246,0.5);
+}
 
 .explanation {
   background: rgba(59,130,246,0.06);

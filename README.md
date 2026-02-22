@@ -1,4 +1,4 @@
-# Coastal Labor-Resilience Engine
+# WAVE — Workforce Analytics & Vulnerability Engine
 
 Real-time modeling of coastal labor resilience for Santa Barbara County. This dashboard combines live environmental hazards, workforce transitions, housing pressure, and demographic vulnerability to simulate how climate shocks impact employment recovery.
 

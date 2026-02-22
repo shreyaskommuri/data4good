@@ -17,7 +17,7 @@ const PolicySection     = lazy(() => import('./components/PolicySection'));
 const PDFExportButton   = lazy(() => import('./components/PDFExportButton'));
 const ChatPanel         = lazy(() => import('./components/ChatPanel'));
 
-import { Shield, Database } from 'lucide-react';
+import { Database, Waves } from 'lucide-react';
 
 // Lightweight skeleton shown while a lazy chunk is downloading
 function PanelSkeleton({ height = 240 }) {
@@ -130,23 +130,37 @@ export default function App() {
         zIndex: 100,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{
-            width: 36, height: 36, borderRadius: 10,
-            background: 'linear-gradient(135deg, #3b82f6, #22d3ee)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <Shield size={18} color="#fff" />
+          <div 
+            className="wave-logo"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: 40,
+              height: 40,
+              borderRadius: 10,
+              background: 'linear-gradient(135deg, rgba(59,130,246,0.2), rgba(34,211,238,0.2))',
+              border: '1px solid rgba(59,130,246,0.3)',
+              transition: 'all 0.3s ease',
+            }}
+          >
+            <Waves size={20} style={{ color: '#3b82f6' }} />
           </div>
           <div>
             <div style={{
-              fontSize: '1rem', fontWeight: 700, letterSpacing: '-0.02em',
+              fontSize: '1.5rem', fontWeight: 800, letterSpacing: '-0.03em',
+              background: 'linear-gradient(135deg, #3b82f6, #22d3ee)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
             }}>
-              Coastal Labor-Resilience Engine
+              WAVE
             </div>
             <div style={{
               fontSize: '0.7rem', color: 'var(--text-muted)',
+              marginTop: 2,
             }}>
-              Santa Barbara County · Data4Good
+              Workforce Analytics & Vulnerability Engine
             </div>
           </div>
         </div>
@@ -299,7 +313,13 @@ export default function App() {
           fontSize: '0.75rem',
         }}>
           <div style={{ marginBottom: 4, fontWeight: 500, color: 'var(--text-secondary)' }}>
-            Coastal Labor-Resilience Engine
+            <span style={{ 
+              background: 'linear-gradient(135deg, #3b82f6, #22d3ee)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+              fontWeight: 700,
+            }}>WAVE</span> — Workforce Analytics & Vulnerability Engine
           </div>
           <div>
             Built for Data4Good · Sources: Census ACS, NOAA CO-OPS, FEMA NFHL,

@@ -375,7 +375,7 @@ export async function generatePDFReport(params, simData, selectedTract) {
   pdf.setTextColor(...colors.muted);
   pdf.setFontSize(6.5);
   pdf.setFont('helvetica', 'normal');
-  pdf.text('Coastal Labor-Resilience Engine • Santa Barbara County', margin, footerY + 3);
+  pdf.text('WAVE — Workforce Analytics & Vulnerability Engine • Santa Barbara County', margin, footerY + 3);
   pdf.text(`Page 1 of 2 | Generated: ${new Date().toISOString().split('T')[0]}`, pageWidth - margin - 45, footerY + 3);
 
   // ============================================================

@@ -1,5 +1,5 @@
 """
-FastAPI backend for the Coastal Labor-Resilience Engine.
+FastAPI backend for WAVE — Workforce Analytics & Vulnerability Engine.
 Serves all data to the React frontend.
 """
 import sys
@@ -662,7 +662,7 @@ async def chat(payload: dict = Body(...)):
     tract_selected = bool(tract.get('name'))
 
     system_prompt = f"""You are a coastal resilience policy analyst for Santa Barbara County, California.
-You have access to real-time data from the Coastal Labor-Resilience Engine dashboard.
+You have access to real-time data from the WAVE (Workforce Analytics & Vulnerability Engine) dashboard.
 
 CITY / COMMUNITY SUMMARY (aggregated from all tracts):
 {city_table}
