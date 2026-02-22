@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useApi } from './hooks';
 import * as api from './api';
 
@@ -15,7 +15,8 @@ import PolicySection from './components/PolicySection';
 import { Shield, Database, Clock } from 'lucide-react';
 
 export default function App() {
-  const [params, setParams] = useState({
+  // Local state for immediate slider feedback (no API calls)
+  const [localParams, setLocalParams] = useState({
     severity: 0.5,
     duration: 21,
     start_day: 30,
@@ -24,7 +25,28 @@ export default function App() {
     sim_days: 365,
   });
 
-  // Fetch data that depends on params
+  // Debounced params that trigger API calls
+  const [params, setParams] = useState(localParams);
+  const debounceTimerRef = useRef(null);
+
+  // Debounce param updates - only update params after user stops sliding
+  useEffect(() => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    
+    debounceTimerRef.current = setTimeout(() => {
+      setParams(localParams);
+    }, 300); // 300ms delay after user stops adjusting
+
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, [localParams]);
+
+  // Fetch data that depends on params (only updates after debounce)
   const sim = useApi(
     () => api.getSimulation(params),
     [params.severity, params.duration, params.start_day, params.r, params.K]
@@ -46,6 +68,11 @@ export default function App() {
   const noaa = useApi(() => api.getNoaa(), []);
   const workforce = useApi(() => api.getWorkforce(), []);
   const housing = useApi(() => api.getHousing(), []);
+
+  // Check if params are being debounced (localParams !== params)
+  const isUpdating = useMemo(() => {
+    return JSON.stringify(localParams) !== JSON.stringify(params);
+  }, [localParams, params]);
 
   return (
     <div style={{
@@ -87,6 +114,25 @@ export default function App() {
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          {isUpdating && (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '4px 12px', borderRadius: 20,
+              background: 'rgba(251,191,36,0.1)',
+              border: '1px solid rgba(251,191,36,0.2)',
+              animation: 'fadeIn 0.2s ease-in',
+            }}>
+              <div style={{
+                width: 6, height: 6, borderRadius: '50%',
+                background: '#fbbf24',
+              }} className="pulse" />
+              <span style={{
+                fontSize: '0.7rem', color: '#fbbf24', fontWeight: 500,
+              }}>
+                Updating...
+              </span>
+            </div>
+          )}
           <div style={{
             display: 'flex', alignItems: 'center', gap: 6,
             padding: '4px 12px', borderRadius: 20,
@@ -129,7 +175,7 @@ export default function App() {
           gap: 24,
           marginBottom: 24,
         }}>
-          <ControlPanel params={params} onChange={setParams} />
+          <ControlPanel params={localParams} onChange={setLocalParams} />
           <TractMap tracts={tracts.data} loading={tracts.loading} />
         </div>
 

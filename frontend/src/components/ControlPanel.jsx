@@ -1,7 +1,37 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Sliders } from 'lucide-react';
 
 function Slider({ label, value, onChange, min, max, step, format }) {
+  // Local state for immediate visual feedback (slider thumb position)
+  const [localValue, setLocalValue] = useState(value);
+  const isDraggingRef = useRef(false);
+
+  // Sync local value when prop changes (but not while dragging)
+  useEffect(() => {
+    if (!isDraggingRef.current) {
+      setLocalValue(value);
+    }
+  }, [value]);
+
+  // Handle slider change - update local state immediately for visual feedback
+  // and update parent state (which is debounced)
+  const handleChange = (e) => {
+    const newValue = parseFloat(e.target.value);
+    setLocalValue(newValue); // Immediate visual update
+    isDraggingRef.current = true;
+    onChange(newValue); // Update parent (debounced in App.jsx)
+  };
+
+  const handleMouseDown = () => {
+    isDraggingRef.current = true;
+  };
+
+  const handleMouseUp = () => {
+    isDraggingRef.current = false;
+    // Ensure final value is synced
+    setLocalValue(value);
+  };
+
   return (
     <div style={{ marginBottom: 16 }}>
       <div style={{
@@ -13,14 +43,22 @@ function Slider({ label, value, onChange, min, max, step, format }) {
           fontFamily: 'var(--font-mono)', fontSize: '0.8rem',
           color: 'var(--accent-cyan)', fontWeight: 500,
         }}>
-          {format ? format(value) : value}
+          {format ? format(localValue) : localValue}
         </span>
       </div>
       <input
         type="range"
         min={min} max={max} step={step}
-        value={value}
-        onChange={e => onChange(parseFloat(e.target.value))}
+        value={localValue}
+        onChange={handleChange}
+        onMouseDown={handleMouseDown}
+        onMouseUp={handleMouseUp}
+        onTouchStart={handleMouseDown}
+        onTouchEnd={handleMouseUp}
+        style={{
+          width: '100%',
+          cursor: 'pointer',
+        }}
       />
     </div>
   );
