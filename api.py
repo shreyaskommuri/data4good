@@ -265,7 +265,7 @@ def api_simulation(
         'equilibrium': round(eq * 100, 1),
         'critical_tracts': critical,
         'emergency_fund': round(emergency_fund),
-        'status': 'RESILIENT' if sol['resilience_score'] > 0.7 else 'VULNERABLE',
+        'status': 'RESILIENT' if sol['resilience_score'] >= 0.6 else ('AT RISK' if sol['resilience_score'] >= 0.35 else 'VULNERABLE'),
     }
 
 

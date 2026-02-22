@@ -6,14 +6,14 @@ import { useAnimatedNumber } from '../hooks';
 import Tooltip from './Tooltip';
 
 function scoreColor(score) {
-  if (score >= 0.7) return '#34d399';
-  if (score >= 0.4) return '#fbbf24';
+  if (score >= 0.6) return '#34d399';
+  if (score >= 0.35) return '#fbbf24';
   return '#f43f5e';
 }
 
 function statusLabel(score) {
-  if (score >= 0.7) return 'RESILIENT';
-  if (score >= 0.4) return 'AT RISK';
+  if (score >= 0.6) return 'RESILIENT';
+  if (score >= 0.35) return 'AT RISK';
   return 'VULNERABLE';
 }
 
