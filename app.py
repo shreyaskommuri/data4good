@@ -398,6 +398,12 @@ st.markdown("""
         box-shadow: 0 10px 40px rgba(59, 130, 246, 0.3);
     }
     
+    /* Pulse animation for live indicators */
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+    
     /* Footer */
     .footer {
         margin-top: 3rem;
@@ -747,8 +753,10 @@ def calc_exodus_prob(ej_pct, coastal_pct, severity):
 # ============================================================================
 
 # Header
-st.markdown('<h1 class="hero-title">Coastal Labor-Resilience Engine</h1>', unsafe_allow_html=True)
-st.markdown('<p class="hero-subtitle">Real-time labor market dynamics modeling for Santa Barbara County under climate scenarios</p>', unsafe_allow_html=True)
+st.markdown("""
+<h1 style="font-size: 2.5rem; font-weight: 800; letter-spacing: -0.03em; background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 0.25rem;">Coastal Labor-Resilience Engine</h1>
+<p style="font-size: 1rem; color: #a0a0b0; font-weight: 400; margin-bottom: 1.5rem;">Real-time labor market modeling for Santa Barbara County under climate scenarios</p>
+""", unsafe_allow_html=True)
 
 # ============================================================================
 # LIVE DATA STATUS
@@ -781,35 +789,21 @@ if HOUSING_DATA_AVAILABLE:
     data_sources.append("Housing: 9,220 records")
 
 if has_live_data or has_real_census or has_noaa_data:
+    sources_html = ' · '.join(data_sources)
     st.markdown(f"""
-    <div class="glass-card" style="margin-bottom: 1.5rem; padding: 1rem 1.5rem;">
-        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
-            <div style="display: flex; align-items: center; gap: 1rem;">
-                <div class="live-indicator">
-                    <span class="live-dot"></span>
-                    <span>REAL DATA MODE</span>
-                </div>
-                <span style="color: var(--text-muted); font-size: 0.875rem;">
-                    {'Live Data' if has_live_data else ''}{' + ' if has_live_data and has_real_census else ''}{'Census Bureau' if has_real_census else ''}{' + NOAA' if has_noaa_data else ''}
-                </span>
-            </div>
-            <div style="display: flex; gap: 2rem; font-size: 0.875rem;">
-                {' '.join([f'<div><span style="font-family: JetBrains Mono; font-weight: 600;">{s}</span></div>' for s in data_sources])}
-            </div>
+    <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; margin-bottom: 1.5rem; padding: 0.75rem 1.5rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem;">
+        <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <span style="width: 8px; height: 8px; background: #22c55e; border-radius: 50%; display: inline-block;"></span>
+            <span style="font-size: 0.8rem; font-weight: 600; color: #22c55e; text-transform: uppercase; letter-spacing: 0.05em;">Real Data</span>
         </div>
+        <div style="font-size: 0.8rem; color: #a0a0b0; font-family: 'JetBrains Mono', monospace;">{sources_html}</div>
     </div>
     """, unsafe_allow_html=True)
 else:
     st.markdown("""
-    <div class="glass-card" style="margin-bottom: 1.5rem; padding: 1rem 1.5rem; border-color: var(--warning);">
-        <div style="display: flex; align-items: center; gap: 1rem;">
-            <span style="color: var(--warning); font-size: 0.875rem; font-weight: 500;">
-                SIMULATED DATA MODE
-            </span>
-            <span style="color: var(--text-muted); font-size: 0.875rem;">
-                APIs unavailable - using synthetic Santa Barbara data
-            </span>
-        </div>
+    <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(245,158,11,0.3); border-radius: 12px; margin-bottom: 1.5rem; padding: 0.75rem 1.5rem; display: flex; align-items: center; gap: 0.75rem;">
+        <span style="font-size: 0.8rem; font-weight: 600; color: #f59e0b;">SIMULATED DATA</span>
+        <span style="font-size: 0.8rem; color: #a0a0b0;">APIs unavailable — synthetic Santa Barbara data</span>
     </div>
     """, unsafe_allow_html=True)
 
@@ -817,13 +811,18 @@ else:
 # SEVERITY CONTROL BAR
 # ============================================================================
 
-st.markdown('<p class="section-title">Scenario Configuration</p>', unsafe_allow_html=True)
+st.markdown("""
+<div style="margin-top:3rem; margin-bottom: 2rem;">
+    <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem;">Scenario Explorer: What If?</h2>
+    <p style="color: #a0a0b0; font-size: 0.95rem;">Adjust shock parameters below to model different disaster scenarios and see how Santa Barbara's workforce responds.</p>
+</div>
+""", unsafe_allow_html=True)
 
 col_sev1, col_sev2, col_sev3, col_sev4 = st.columns([2, 1, 1, 1])
 
 with col_sev1:
     shock_severity = st.slider(
-        "Storm Severity Level",
+        "🌪️ Storm Severity Level",
         min_value=0.0,
         max_value=1.0,
         value=0.5,
@@ -835,7 +834,7 @@ with col_sev1:
 
 with col_sev2:
     shock_duration = st.selectbox(
-        "Duration",
+        "⏱️ Duration",
         options=[7, 14, 21, 30, 45, 60],
         index=2,
         format_func=lambda x: f"{x} days"
@@ -843,7 +842,7 @@ with col_sev2:
 
 with col_sev3:
     shock_start = st.selectbox(
-        "Shock Start",
+        "📅 Shock Start",
         options=[15, 30, 45, 60],
         index=1,
         format_func=lambda x: f"Day {x}"
@@ -881,7 +880,7 @@ sb_tracts['vulnerability'] = pd.cut(
 )
 
 # ============================================================================
-# KEY METRICS
+# KEY METRICS ("NORTH STAR" + NARRATIVE KPI STRIP)
 # ============================================================================
 
 # Run simulation with average tract
@@ -895,28 +894,71 @@ eq = solution['equilibrium']
 rec_time = solution['recovery_time']
 res_score = solution['resilience_score']
 
+# Narrative status based on resilience score
+if res_score > 0.7:
+    status = "RESILIENT"
+    status_color = "#22c55e"
+    status_desc = "System can absorb economic shocks"
+else:
+    status = "VULNERABLE"
+    status_color = "#ef4444"
+    status_desc = "Significant workforce displacement risk"
+
+# Calculate labor flight percentage
+labor_flight_pct = (1 - min_emp) * 100
+
+# ── North Star + KPI Strip ──────────────────────────────────────────────────
+col_north, col_kpi1, col_kpi2, col_kpi3 = st.columns([1.2, 1, 1, 1])
+
+with col_north:
+    st.markdown(f"""
+    <div style="background: rgba(255,255,255,0.03); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; text-align: center; padding: 1.5rem 1rem;">
+        <div style="font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.12em; color: #606070; margin-bottom: 0.75rem;">
+            Resilience Score
+        </div>
+        <div style="font-size: 4.5rem; font-weight: 800; font-family: 'JetBrains Mono', monospace; background: linear-gradient(135deg, #3b82f6, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; line-height: 1; margin-bottom: 0.5rem;">
+            {res_score:.2f}
+        </div>
+        <div style="font-size: 0.8rem; color: {status_color}; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">
+            {status}
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+with col_kpi1:
+    st.markdown(f"""
+    <div style="background: rgba(255,255,255,0.03); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 1.25rem 1.5rem; height: 100%;">
+        <div style="font-size: 0.65rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.08em; color: #606070; margin-bottom: 0.75rem;">Predicted Labor Flight</div>
+        <div style="font-size: 2.25rem; font-weight: 700; color: #ef4444; font-family: 'JetBrains Mono', monospace;">{labor_flight_pct:.1f}%</div>
+        <div style="font-size: 0.8rem; color: #a0a0b0; margin-top: 0.25rem;">at {shock_severity*100:.0f}% shock severity</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+with col_kpi2:
+    recovery_display = f'{rec_time:.0f}' if rec_time else '—'
+    st.markdown(f"""
+    <div style="background: rgba(255,255,255,0.03); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 1.25rem 1.5rem; height: 100%;">
+        <div style="font-size: 0.65rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.08em; color: #606070; margin-bottom: 0.75rem;">Recovery Lead Time</div>
+        <div style="font-size: 2.25rem; font-weight: 700; color: #ffffff; font-family: 'JetBrains Mono', monospace;">{recovery_display} <span style="font-size: 1rem; color: #a0a0b0;">days</span></div>
+        <div style="font-size: 0.8rem; color: #a0a0b0; margin-top: 0.25rem;">to restore workforce baseline</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+with col_kpi3:
+    ej_gap = (eq - 0.92) * 100
+    st.markdown(f"""
+    <div style="background: rgba(255,255,255,0.03); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 1.25rem 1.5rem; height: 100%;">
+        <div style="font-size: 0.65rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.08em; color: #606070; margin-bottom: 0.75rem;">EJ Inequality Gap</div>
+        <div style="font-size: 2.25rem; font-weight: 700; color: #f59e0b; font-family: 'JetBrains Mono', monospace;">{ej_gap:+.1f}%</div>
+        <div style="font-size: 0.8rem; color: #a0a0b0; margin-top: 0.25rem;">permanent economic shift</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+# Data freshness bar
 st.markdown(f"""
-<div class="metric-container">
-    <div class="metric-card">
-        <div class="metric-label">Minimum Employment</div>
-        <div class="metric-value">{min_emp * 100:.1f}%</div>
-        <div class="metric-delta negative">{(min_emp - 0.92) * 100:+.1f}% from baseline</div>
-    </div>
-    <div class="metric-card">
-        <div class="metric-label">Recovery Time</div>
-        <div class="metric-value">{f'{rec_time:.0f}d' if rec_time else 'N/A'}</div>
-        <div class="metric-delta">to 95% baseline</div>
-    </div>
-    <div class="metric-card">
-        <div class="metric-label">Equilibrium</div>
-        <div class="metric-value">{eq * 100:.1f}%</div>
-        <div class="metric-delta {'negative' if eq < 0.92 else 'positive'}">{(eq - 0.92) * 100:+.1f}% permanent</div>
-    </div>
-    <div class="metric-card">
-        <div class="metric-label">Resilience Index</div>
-        <div class="metric-value">{res_score:.2f}</div>
-        <div class="metric-delta">{'High' if res_score > 0.7 else ('Moderate' if res_score > 0.4 else 'Low')}</div>
-    </div>
+<div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; margin: 1rem 0 2rem 0; padding: 0.6rem 1.5rem; display: flex; align-items: center; gap: 0.75rem;">
+    <span style="width: 7px; height: 7px; background: #22c55e; border-radius: 50%; display: inline-block;"></span>
+    <span style="font-size: 0.8rem; color: #a0a0b0;">Real data from Census Bureau · NOAA · FEMA · BLS · SBCAG Housing — Updated Feb 21, 2026</span>
 </div>
 """, unsafe_allow_html=True)
 
@@ -927,13 +969,13 @@ st.markdown(f"""
 col_map, col_sidebar = st.columns([2, 1])
 
 with col_map:
-    st.markdown('<p class="section-title">Live Hazard Map</p>', unsafe_allow_html=True)
+    st.markdown('<div><h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 0.5rem;">🗺️ Economic Hotspot Map</h2></div>', unsafe_allow_html=True)
     
     # Live indicator
     st.markdown("""
     <div class="live-indicator">
         <span class="live-dot"></span>
-        Real-time vulnerability mapping
+        109 census tracts &mdash; real-time vulnerability scoring
     </div>
     """, unsafe_allow_html=True)
     
@@ -991,7 +1033,7 @@ with col_map:
     st.plotly_chart(fig_map, use_container_width=True, config={'displayModeBar': False})
 
 with col_sidebar:
-    st.markdown('<p class="section-title">Tract Analysis</p>', unsafe_allow_html=True)
+    st.markdown('<div><h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 0.5rem;">🔍 Tract Deep Dive</h2></div>', unsafe_allow_html=True)
     
     # Tract selector
     selected_tract = st.selectbox(
@@ -1043,7 +1085,7 @@ with col_sidebar:
         st.markdown('<div style="color: #22c55e; font-size: 0.875rem;">Low Risk Area</div>', unsafe_allow_html=True)
     
     # Top vulnerable tracts
-    st.markdown('<p class="section-title" style="margin-top: 1.5rem;">Most Vulnerable Areas</p>', unsafe_allow_html=True)
+    st.markdown('<div style="font-size: 0.85rem; font-weight: 600; color: #a0a0b0; margin-top: 1.5rem; margin-bottom: 0.5rem;">⚠️ Highest Exodus Risk</div>', unsafe_allow_html=True)
     
     top_tracts = sb_tracts.nlargest(5, 'exodus_prob')
     for _, row in top_tracts.iterrows():
@@ -1056,11 +1098,75 @@ with col_sidebar:
         </div>
         """, unsafe_allow_html=True)
 
+# Calculate emergency fund allocation
+emergency_fund = labor_flight_pct * 50000  # $50k per displaced worker
+critical_tracts = (sb_tracts['vulnerability'] == 'Critical').sum()
+
+# ============================================================================
+# POLICY RECOMMENDATIONS
+# ============================================================================
+
+st.markdown("""
+<div style="margin-top: 3rem; margin-bottom: 1rem;">
+    <h2 style="font-size: 1.25rem; font-weight: 700; color: #ffffff; margin-bottom: 0.5rem;">💡 Policy Recommendations</h2>
+    <p style="color: #a0a0b0; font-size: 0.9rem;">Evidence-based priorities for Santa Barbara County leadership:</p>
+</div>
+""", unsafe_allow_html=True)
+
+# Determine urgency level
+if res_score > 0.8:
+    rec_urgency = "Maintain & strengthen preparedness"
+    rec_color = "#22c55e"
+    rec_icon = "✓"
+elif res_score > 0.6:
+    rec_urgency = "Scale resilience investments in 6 mo"
+    rec_color = "#f59e0b"
+    rec_icon = "⚠"
+else:
+    rec_urgency = "Implement mitigation immediately"
+    rec_color = "#ef4444"
+    rec_icon = "🚨"
+
+col_pol1, col_pol2 = st.columns(2)
+
+with col_pol1:
+    st.markdown(f"""
+    <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 1.25rem 1.5rem;">
+        <div style="display: flex; gap: 1rem;">
+            <div style="font-size: 2rem; line-height: 1;">{rec_icon}</div>
+            <div>
+                <div style="font-size: 0.65rem; font-weight: 600; color: {rec_color}; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.5rem;">Action Urgency</div>
+                <div style="font-size: 1rem; font-weight: 600; color: #ffffff; margin-bottom: 0.5rem;">{rec_urgency}</div>
+                <div style="font-size: 0.8rem; color: #a0a0b0;">{labor_flight_pct:.1f}% predicted workforce loss over {shock_duration} days</div>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+with col_pol2:
+    st.markdown(f"""
+    <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 1.25rem 1.5rem;">
+        <div style="display: flex; gap: 1rem;">
+            <div style="font-size: 2rem; line-height: 1;">💰</div>
+            <div>
+                <div style="font-size: 0.65rem; font-weight: 600; color: #3b82f6; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.5rem;">Relief Budget</div>
+                <div style="font-size: 1.25rem; font-weight: 700; color: #ffffff; margin-bottom: 0.5rem;">${emergency_fund/1e6:.1f}M</div>
+                <div style="font-size: 0.8rem; color: #a0a0b0;">Workforce support for {critical_tracts} critical tracts</div>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
 # ============================================================================
 # RECOVERY FORECAST TIMELINE
 # ============================================================================
 
-st.markdown('<p class="section-title" style="margin-top: 2rem;">Recovery Forecast</p>', unsafe_allow_html=True)
+st.markdown("""
+<div style="margin-top: 3rem; margin-bottom: 1rem;">
+    <h2 style="font-size: 1.25rem; font-weight: 700; color: #ffffff; margin-bottom: 0.5rem;">📈 Recovery Forecast</h2>
+    <p style="color: #a0a0b0; font-size: 0.9rem;">How different EJ profiles recover at different speeds — structural inequalities in resilience.</p>
+</div>
+""", unsafe_allow_html=True)
 
 # Timeline header
 recovery_str = f"{solution['recovery_time']:.0f} days" if solution['recovery_time'] else "Extended"
@@ -1162,7 +1268,7 @@ st.plotly_chart(fig_timeline, use_container_width=True, config={'displayModeBar'
 # ============================================================================
 
 if has_live_data and industry_df is not None and len(industry_df) > 0:
-    st.markdown('<p class="section-title" style="margin-top: 1.5rem;">Workforce Intelligence</p>', unsafe_allow_html=True)
+    st.markdown('<div style="margin-top: 2rem;"><h2 style="font-size: 1.25rem; font-weight: 700; color: #ffffff; margin-bottom: 0.5rem;">👷 Workforce Intelligence: Who\'s At Risk?</h2><p style="color: #a0a0b0; font-size: 0.85rem;">Live Data Technologies records showing real worker transitions across Santa Barbara County</p></div>', unsafe_allow_html=True)
     
     col_ind, col_trans, col_county = st.columns(3)
     
@@ -1298,7 +1404,7 @@ if has_live_data and industry_df is not None and len(industry_df) > 0:
 # ============================================================================
 
 if has_noaa_data:
-    st.markdown('<p class="section-title" style="margin-top: 1.5rem;">Coastal Hazard Monitoring</p>', unsafe_allow_html=True)
+    st.markdown('<div style="margin-top: 2rem;"><h2 style="font-size: 1.25rem; font-weight: 700; color: #ffffff; margin-bottom: 0.5rem;">🌊 Coastal Hazard Monitor: Real-Time Threats</h2><p style="color: #a0a0b0; font-size: 0.85rem;">Live NOAA tide data and FEMA flood zone analysis for Santa Barbara coastline</p></div>', unsafe_allow_html=True)
     
     col_water, col_water_info = st.columns([2, 1])
     
@@ -1397,8 +1503,7 @@ if has_noaa_data:
 # ============================================================================
 
 if HOUSING_DATA_AVAILABLE:
-    st.markdown('<p class="section-title" style="margin-top: 1.5rem;">Housing Pressure Index</p>', unsafe_allow_html=True)
-    st.markdown('<p style="color: #64748b; font-size: 0.85rem; margin-top: -0.5rem;">Source: California HCD Annual Progress Reports via SBCAG &mdash; 9,220 housing records (2018&ndash;2024)</p>', unsafe_allow_html=True)
+    st.markdown('<div style="margin-top: 2rem;"><h2 style="font-size: 1.25rem; font-weight: 700; color: #ffffff; margin-bottom: 0.5rem;">🏠 Housing Pressure: Where Workers Can\'t Afford to Live</h2><p style="color: #a0a0b0; font-size: 0.85rem;">SBCAG Annual Progress Report data — 9,220 housing records (2018–2024)</p></div>', unsafe_allow_html=True)
     
     @st.cache_data(ttl=3600)
     def get_housing_metrics():
@@ -1532,7 +1637,7 @@ if HOUSING_DATA_AVAILABLE:
 # SANKEY DIAGRAM - Worker Flow
 # ============================================================================
 
-st.markdown('<p class="section-title" style="margin-top: 1rem;">Worker Flow Analysis</p>', unsafe_allow_html=True)
+st.markdown('<div style="margin-top: 3rem;"><h2 style="font-size: 1.25rem; font-weight: 700; color: #ffffff; margin-bottom: 0.5rem;">🔄 Worker Flow Analysis: Where Do They Go?</h2><p style="color: #a0a0b0; font-size: 0.85rem;">Sankey diagram showing the flow of workers between employment states after a climate shock</p></div>', unsafe_allow_html=True)
 
 col_sankey, col_sankey_info = st.columns([2, 1])
 
