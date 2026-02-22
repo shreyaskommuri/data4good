@@ -145,11 +145,33 @@ def get_tracts():
 
 
 def calc_exodus_prob(ej_pct, coastal_pct, severity):
-    base_prob = 0.04
-    ej_factor = 1 + (ej_pct / 100) * 2
-    coastal_factor = coastal_pct / 50
-    shock_factor = 1 + severity * 3
-    return min(base_prob * ej_factor * coastal_factor * shock_factor, 0.95)
+    """
+    Exodus probability based on EJ burden, coastal job dependency, and shock severity.
+    Calibrated to produce a realistic spread across vulnerability categories.
+    
+    Factors:
+    - EJ percentile: higher burden → higher flight risk (dominant driver)
+    - Coastal job share: more coastal-dependent → more exposure
+    - Shock severity: stronger shock → more displacement
+    """
+    # Normalize EJ percentile to 0-1 range (these are county-relative percentiles)
+    ej_norm = ej_pct / 100.0
+    
+    # Coastal dependency: normalize assuming max ~25% coastal jobs in any tract
+    coastal_norm = min(coastal_pct / 25.0, 1.0)
+    
+    # Composite vulnerability score (EJ is primary driver, coastal is secondary)
+    vuln_score = 0.6 * ej_norm + 0.4 * coastal_norm
+    
+    # Apply severity scaling — at severity=0.5, moderate effect; at 1.0, maximum
+    shock_multiplier = 0.5 + severity * 1.5  # range: 0.5 to 2.0
+    
+    # Map to probability using logistic-like curve for realistic spread
+    # Produces full range across Low/Moderate/High/Critical
+    raw = vuln_score * shock_multiplier
+    prob = 0.02 + 0.80 * (raw ** 1.0)  # linear scaling for natural spread
+    
+    return min(max(prob, 0.02), 0.95)
 
 
 def run_simulation(severity, duration, start_day, r, K, ej_percentile, n_days):
@@ -182,9 +204,16 @@ def api_tracts(severity: float = 0.5):
     df['exodus_prob'] = df.apply(
         lambda r: calc_exodus_prob(r['ej_percentile'], r['coastal_jobs_pct'], severity), axis=1
     )
-    bins = [0, 0.15, 0.30, 0.50, 1.0]
-    labels = ['Low', 'Moderate', 'High', 'Critical']
-    df['vulnerability'] = pd.cut(df['exodus_prob'], bins=bins, labels=labels).astype(str)
+    # Use quantile-based bins so all 4 categories are always represented
+    try:
+        df['vulnerability'] = pd.qcut(
+            df['exodus_prob'], q=4, labels=['Low', 'Moderate', 'High', 'Critical']
+        ).astype(str)
+    except ValueError:
+        # Fallback if too many duplicate edges
+        bins = [0, 0.15, 0.30, 0.50, 1.0]
+        labels = ['Low', 'Moderate', 'High', 'Critical']
+        df['vulnerability'] = pd.cut(df['exodus_prob'], bins=bins, labels=labels).astype(str)
 
     cols = ['tract_id','name','lat','lon','population','median_income','poverty_pct',
             'minority_pct','limited_english_pct','limited_english','ej_percentile',
@@ -211,8 +240,13 @@ def api_simulation(
     df['exodus_prob'] = df.apply(
         lambda r_: calc_exodus_prob(r_['ej_percentile'], r_['coastal_jobs_pct'], severity), axis=1
     )
-    df['vulnerability'] = pd.cut(df['exodus_prob'], bins=[0,0.15,0.30,0.50,1.0],
-                                  labels=['Low','Moderate','High','Critical']).astype(str)
+    try:
+        df['vulnerability'] = pd.qcut(
+            df['exodus_prob'], q=4, labels=['Low','Moderate','High','Critical']
+        ).astype(str)
+    except ValueError:
+        df['vulnerability'] = pd.cut(df['exodus_prob'], bins=[0,0.15,0.30,0.50,1.0],
+                                      labels=['Low','Moderate','High','Critical']).astype(str)
     critical = int((df['vulnerability'] == 'Critical').sum())
     emergency_fund = labor_flight * 50000
 
@@ -343,10 +377,9 @@ def api_housing():
         return _housing_cache
 
     try:
-        data = load_housing_data('APR_Download_2024.xlsx')
-        loader = HousingDataLoader(data)
+        loader = HousingDataLoader('APR_Download_2024.xlsx')
         pressure = loader.get_housing_pressure_index()
-        trend = loader.get_annual_production_trend()
+        trend = loader.get_production_trend()
 
         pressure_list = pressure.to_dict(orient='records')
         trend_list = trend.to_dict(orient='records')
