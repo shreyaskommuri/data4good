@@ -172,9 +172,13 @@ function SectionLabel({ icon, text }) {
       display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8,
       fontSize: '0.73rem', fontWeight: 600, color: 'var(--text-secondary)',
       textTransform: 'uppercase', letterSpacing: '0.05em',
-    }}>
-      {icon}
-      {text}
+      overflow: 'hidden', textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap', minWidth: 0,
+    }} title={text}>
+      <span style={{ flexShrink: 0, display: 'flex' }}>{icon}</span>
+      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        {text}
+      </span>
     </div>
   );
 }
