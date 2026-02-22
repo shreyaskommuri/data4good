@@ -16,8 +16,12 @@ const DARK_STYLE = {
   name: 'Dark',
   sources: {
     'carto-dark': {
+      type: 'raster',
+      tiles: [
+        'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
         'https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
-                setViewState(v => ({ ...v, longitude: item.lon, latitude: item.lat, zoom: 12 }));
+        'https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
+      ],
       tileSize: 256,
       attribution: '&copy; CARTO &copy; OSM',
     },
