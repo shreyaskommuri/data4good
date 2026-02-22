@@ -77,6 +77,32 @@ _noaa_cache = None
 _workforce_cache = None
 _housing_cache = None
 
+_TRACT_DISK_CACHE = Path("data/processed/tracts_cache.json")
+
+
+def _load_tract_disk_cache():
+    """Return a DataFrame from disk cache if it exists and is < 24 h old."""
+    try:
+        if _TRACT_DISK_CACHE.exists():
+            import time
+            age = time.time() - _TRACT_DISK_CACHE.stat().st_mtime
+            if age < 86400:  # 24 h
+                df = pd.read_json(_TRACT_DISK_CACHE)
+                if not df.empty:
+                    return df
+    except Exception:
+        pass
+    return None
+
+
+def _save_tract_disk_cache(df: pd.DataFrame):
+    """Persist the tract DataFrame to disk so next restart is instant."""
+    try:
+        _TRACT_DISK_CACHE.parent.mkdir(parents=True, exist_ok=True)
+        df.to_json(_TRACT_DISK_CACHE, orient='records')
+    except Exception:
+        pass
+
 
 def _get_synthetic_tracts():
     return pd.DataFrame({
@@ -136,6 +162,12 @@ def get_tracts():
     if _tract_cache is not None:
         return _tract_cache
 
+    # Try disk cache first — instant if data was fetched before
+    cached = _load_tract_disk_cache()
+    if cached is not None:
+        _tract_cache = cached
+        return _tract_cache
+
     if not REAL_DATA_AVAILABLE:
         _tract_cache = _get_synthetic_tracts()
         return _tract_cache
@@ -179,14 +211,24 @@ def get_tracts():
         df['limited_english'] = df['limited_english_pct'].round(0).astype(int)
         df['high_poverty'] = df['poverty_pct'] > 15
 
+        # Parallelize FEMA flood-zone lookups (was 109 sequential HTTP calls)
         fema = FEMAFloodClient()
-        flood_zones = []
-        for _, row in df.iterrows():
-            zone_info = fema.get_flood_zones_for_point(row['lat'], row['lon'])
-            flood_zones.append(zone_info.get('special_flood_hazard', False))
+        coords = list(zip(df['lat'], df['lon']))
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        flood_zones = [False] * len(coords)
+        with ThreadPoolExecutor(max_workers=20) as pool:
+            futures = {pool.submit(fema.get_flood_zones_for_point, lat, lon): i
+                       for i, (lat, lon) in enumerate(coords)}
+            for future in as_completed(futures):
+                idx = futures[future]
+                try:
+                    flood_zones[idx] = future.result().get('special_flood_hazard', False)
+                except Exception:
+                    flood_zones[idx] = False
         df['flood_zone'] = flood_zones
 
         _tract_cache = df
+        _save_tract_disk_cache(df)  # persist so next restart is instant
         return df
     except Exception:
         _tract_cache = _get_synthetic_tracts()

@@ -421,7 +421,7 @@ class FEMAFloodClient:
         }
         
         try:
-            response = self.session.get(url, params=params, timeout=15)
+            response = self.session.get(url, params=params, timeout=4)
             response.raise_for_status()
             data = response.json()
             
