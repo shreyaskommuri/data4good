@@ -17,7 +17,55 @@ const PolicySection     = lazy(() => import('./components/PolicySection'));
 const PDFExportButton   = lazy(() => import('./components/PDFExportButton'));
 const ChatPanel         = lazy(() => import('./components/ChatPanel'));
 
-import { Database, Waves } from 'lucide-react';
+import { Database } from 'lucide-react';
+
+// WAVE Logo Component — Clean wave
+function WaveLogo({ size = 40 }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 64 64"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      style={{ display: 'block' }}
+    >
+      <defs>
+        <linearGradient id="wg" x1="0" y1="32" x2="64" y2="32" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#3b82f6" />
+          <stop offset="50%" stopColor="#22d3ee" />
+          <stop offset="100%" stopColor="#34d399" />
+        </linearGradient>
+      </defs>
+      {/* Wave line 1 — top */}
+      <path
+        d="M 8 24 C 16 16, 24 16, 32 24 C 40 32, 48 32, 56 24"
+        stroke="url(#wg)"
+        strokeWidth="3.5"
+        fill="none"
+        strokeLinecap="round"
+      />
+      {/* Wave line 2 — middle */}
+      <path
+        d="M 8 34 C 16 26, 24 26, 32 34 C 40 42, 48 42, 56 34"
+        stroke="url(#wg)"
+        strokeWidth="3.5"
+        fill="none"
+        strokeLinecap="round"
+        opacity="0.6"
+      />
+      {/* Wave line 3 — bottom */}
+      <path
+        d="M 8 44 C 16 36, 24 36, 32 44 C 40 52, 48 52, 56 44"
+        stroke="url(#wg)"
+        strokeWidth="3.5"
+        fill="none"
+        strokeLinecap="round"
+        opacity="0.3"
+      />
+    </svg>
+  );
+}
 
 // Lightweight skeleton shown while a lazy chunk is downloading
 function PanelSkeleton({ height = 240 }) {
@@ -136,15 +184,16 @@ export default function App() {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              width: 40,
-              height: 40,
-              borderRadius: 10,
-              background: 'linear-gradient(135deg, rgba(59,130,246,0.2), rgba(34,211,238,0.2))',
-              border: '1px solid rgba(59,130,246,0.3)',
+              width: 44,
+              height: 44,
+              borderRadius: 12,
+              background: 'rgba(15,16,24,0.9)',
+              border: '1px solid rgba(34,211,238,0.15)',
               transition: 'all 0.3s ease',
+              boxShadow: '0 2px 12px rgba(0,0,0,0.3)',
             }}
           >
-            <Waves size={20} style={{ color: '#3b82f6' }} />
+            <WaveLogo size={30} />
           </div>
           <div>
             <div style={{
