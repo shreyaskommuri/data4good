@@ -133,7 +133,7 @@ export default function HousingPanel({ housing, loading }) {
           {/* Chart */}
           <ResponsiveContainer width="100%" height={260}>
             <BarChart
-              data={housing.pressure.sort((a, b) =>
+              data={[...housing.pressure].sort((a, b) =>
                 (b.housing_pressure_index || 0) - (a.housing_pressure_index || 0)
               )}
               margin={{ top: 5, right: 20, bottom: 5, left: 0 }}
