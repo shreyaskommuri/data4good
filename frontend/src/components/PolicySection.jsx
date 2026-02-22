@@ -1,5 +1,6 @@
 import React from 'react';
 import { Shield, FileText, ExternalLink, Zap } from 'lucide-react';
+import Tooltip from './Tooltip';
 
 export default function PolicySection({ sim }) {
   if (!sim) return null;
@@ -49,8 +50,9 @@ export default function PolicySection({ sim }) {
           <Shield size={18} />
         </span>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: '1.1rem', fontWeight: 700 }}>
+          <div style={{ fontSize: '1.1rem', fontWeight: 700, display: 'flex', alignItems: 'center' }}>
             Policy Recommendations
+            <Tooltip content="These recommendations are <strong>auto-generated from the simulation</strong>. As you adjust the shock parameters above, recommendations update in real-time. Focus on &quot;immediate&quot; items first — these address the most severe projected impacts." />
           </div>
           <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
             Data-driven interventions based on simulation results
@@ -67,12 +69,6 @@ export default function PolicySection({ sim }) {
           <Zap size={12} style={{ display: 'inline', verticalAlign: -2, marginRight: 4 }} />
           {urgency} PRIORITY
         </span>
-      </div>
-
-      <div className="explanation">
-        These recommendations are <strong>auto-generated from the simulation</strong>.
-        As you adjust the shock parameters above, recommendations update in real-time.
-        Focus on "immediate" items first — these address the most severe projected impacts.
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>

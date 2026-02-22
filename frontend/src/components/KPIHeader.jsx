@@ -3,6 +3,7 @@ import {
   Shield, TrendingDown, Clock, AlertTriangle, DollarSign, Activity
 } from 'lucide-react';
 import { useAnimatedNumber } from '../hooks';
+import Tooltip from './Tooltip';
 
 function scoreColor(score) {
   if (score >= 0.7) return '#34d399';

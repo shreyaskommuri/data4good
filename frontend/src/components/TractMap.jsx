@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import Map, { Source, Layer, Popup, NavigationControl } from 'react-map-gl/maplibre';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { MapPin, AlertCircle, Eye, EyeOff, Maximize2 } from 'lucide-react';
+import { MapPin, AlertCircle, Maximize2 } from 'lucide-react';
+import Tooltip from './Tooltip';
 
 const VULN_HEX = {
   Critical: '#f43f5e',
@@ -53,7 +54,6 @@ function tractsToGeoJSON(tracts) {
 export default function TractMap({ tracts, loading }) {
   const [hovered, setHovered] = useState(null);
   const [selected, setSelected] = useState(null);
-  const [showFlood, setShowFlood] = useState(true);
 
   const [viewState, setViewState] = useState({
     longitude: -119.85,
@@ -123,20 +123,14 @@ export default function TractMap({ tracts, loading }) {
           <MapPin size={18} />
         </span>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: '1.1rem', fontWeight: 700 }}>
+          <div style={{ fontSize: '1.1rem', fontWeight: 700, display: 'flex', alignItems: 'center' }}>
             Where Workers Are Most Vulnerable
+            <Tooltip content="Each circle is a <strong>census tract</strong>. Color shows <strong>exodus probability</strong>, how likely workers are to leave after a climate shock. Click any tract for a detailed breakdown." />
           </div>
           <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
             {tracts.length} census tracts · Santa Barbara County · click a tract for details
           </div>
         </div>
-      </div>
-
-      <div className="explanation" style={{ marginBottom: 12 }}>
-        Each circle is a <strong>census tract</strong> — larger circles mean more people.
-        Color shows <strong>exodus probability</strong>, how likely workers are to leave
-        after a climate shock. Cyan rings mark <strong>FEMA flood zones</strong>.
-        Click any tract for a detailed breakdown.
       </div>
 
       {/* Controls row */}
@@ -156,17 +150,6 @@ export default function TractMap({ tracts, loading }) {
           </div>
         ))}
         <div style={{ flex: 1 }} />
-        <button onClick={() => setShowFlood(!showFlood)} style={{
-          display: 'flex', alignItems: 'center', gap: 5,
-          padding: '4px 10px', borderRadius: 8, cursor: 'pointer',
-          border: `1px solid ${showFlood ? 'rgba(34,211,238,0.3)' : 'rgba(255,255,255,0.08)'}`,
-          background: showFlood ? 'rgba(34,211,238,0.1)' : 'transparent',
-          color: showFlood ? '#22d3ee' : 'var(--text-muted)',
-          fontSize: '0.7rem', fontWeight: 500, transition: 'all 0.2s',
-        }}>
-          {showFlood ? <Eye size={12} /> : <EyeOff size={12} />}
-          Flood Zones
-        </button>
         <button onClick={resetView} style={{
           display: 'flex', alignItems: 'center', gap: 4,
           padding: '4px 10px', borderRadius: 8, cursor: 'pointer',
@@ -216,23 +199,6 @@ export default function TractMap({ tracts, loading }) {
               'circle-stroke-width': 1.5,
               'circle-stroke-opacity': 0.3,
             }} />
-            {/* Flood zone rings */}
-            {showFlood && (
-              <Layer id="flood-rings" type="circle"
-                filter={['==', ['get', 'flood_zone'], true]}
-                paint={{
-                  'circle-radius': [
-                    'interpolate', ['linear'], ['zoom'],
-                    8, ['*', ['get', 'radius'], 1.3],
-                    12, ['*', ['get', 'radius'], 2.2],
-                  ],
-                  'circle-color': 'transparent',
-                  'circle-stroke-color': '#22d3ee',
-                  'circle-stroke-width': 1.5,
-                  'circle-stroke-opacity': 0.5,
-                }}
-              />
-            )}
           </Source>
 
           {/* Click popup */}
@@ -270,8 +236,6 @@ export default function TractMap({ tracts, loading }) {
                   <Stat label="Exodus Risk" value={`${(Number(selected.exodus_prob) * 100).toFixed(1)}%`}
                     color={selected.exodus_prob > 0.5 ? '#f43f5e' : selected.exodus_prob > 0.3 ? '#fbbf24' : '#34d399'} />
                   <Stat label="Income" value={`$${(Number(selected.median_income) / 1000).toFixed(0)}k`} />
-                  <Stat label="Flood Zone" value={String(selected.flood_zone) === 'true' ? '⚠ Yes' : 'No'}
-                    color={String(selected.flood_zone) === 'true' ? '#22d3ee' : '#5a5b70'} />
                   <Stat label="Poverty" value={`${Number(selected.poverty_pct).toFixed(1)}%`} />
                   <Stat label="Minority" value={`${Number(selected.minority_pct).toFixed(1)}%`} />
                 </div>

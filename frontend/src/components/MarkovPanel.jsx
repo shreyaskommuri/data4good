@@ -1,5 +1,6 @@
 import React from 'react';
 import { GitBranch } from 'lucide-react';
+import Tooltip from './Tooltip';
 
 const COLORS = {
   stayed_coastal: '#3b82f6',
@@ -39,20 +40,14 @@ export default function MarkovPanel({ markov, loading }) {
           <GitBranch size={18} />
         </span>
         <div>
-          <div style={{ fontSize: '1.1rem', fontWeight: 700 }}>
+          <div style={{ fontSize: '1.1rem', fontWeight: 700, display: 'flex', alignItems: 'center' }}>
             Where Do Workers Go?
+            <Tooltip content="A <strong>Markov chain model</strong> predicts worker movement after disruption. Starting from coastal employment, workers may stay, relocate inland, become unemployed, or enter a transition state. Higher shock severity pushes more workers out of coastal jobs." />
           </div>
           <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
             Markov chain state transitions after climate shock
           </div>
         </div>
-      </div>
-
-      <div className="explanation">
-        A <strong>Markov chain model</strong> predicts worker movement after disruption.
-        Starting from coastal employment, workers may stay, relocate inland,
-        become unemployed, or enter a transition state. Higher shock severity
-        pushes more workers out of coastal jobs.
       </div>
 
       {/* Visual flow */}

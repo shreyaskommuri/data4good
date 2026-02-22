@@ -1,9 +1,10 @@
 import React from 'react';
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
   ResponsiveContainer, ReferenceLine, ReferenceArea, Legend,
 } from 'recharts';
 import { TrendingUp } from 'lucide-react';
+import Tooltip from './Tooltip';
 
 const PROFILE_COLORS = {
   'Low Burden': '#34d399',
@@ -112,21 +113,14 @@ export default function RecoveryChart({ comparison, loading }) {
           <TrendingUp size={18} />
         </span>
         <div>
-          <div style={{ fontSize: '1.1rem', fontWeight: 700 }}>
+          <div style={{ fontSize: '1.1rem', fontWeight: 700, display: 'flex', alignItems: 'center' }}>
             How Fast Can We Recover?
+            <Tooltip content="This chart shows <strong>employment levels over time</strong> after a climate shock. Each line represents communities with different Environmental Justice (EJ) burden levels. <strong>Low-burden communities recover fastest</strong>, while high-burden (high-poverty, high-minority, limited-English) communities take much longer. The red zone marks the shock period." />
           </div>
           <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
             Employment recovery by Environmental Justice burden level
           </div>
         </div>
-      </div>
-
-      <div className="explanation">
-        This chart shows <strong>employment levels over time</strong> after a climate shock.
-        Each line represents communities with different Environmental Justice (EJ) burden levels.
-        <strong> Low-burden communities recover fastest</strong>, while high-burden (high-poverty,
-        high-minority, limited-English) communities take much longer.
-        The red zone marks the shock period.
       </div>
 
       <ResponsiveContainer width="100%" height={320}>
@@ -157,7 +151,7 @@ export default function RecoveryChart({ comparison, loading }) {
             tickFormatter={v => `${v}%`}
             width={48}
           />
-          <Tooltip content={<CustomTooltip />} />
+          <RechartsTooltip content={<CustomTooltip />} />
 
           {/* Shock zone */}
           <ReferenceArea

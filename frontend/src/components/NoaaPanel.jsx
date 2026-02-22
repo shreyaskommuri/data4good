@@ -1,9 +1,10 @@
 import React from 'react';
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
   ResponsiveContainer,
 } from 'recharts';
 import { Waves } from 'lucide-react';
+import Tooltip from './Tooltip';
 
 export default function NoaaPanel({ noaa, loading }) {
   if (loading) {
@@ -28,19 +29,14 @@ export default function NoaaPanel({ noaa, loading }) {
           <Waves size={18} />
         </span>
         <div>
-          <div style={{ fontSize: '1.1rem', fontWeight: 700 }}>
+          <div style={{ fontSize: '1.1rem', fontWeight: 700, display: 'flex', alignItems: 'center' }}>
             Real-Time Sea Level Intelligence
+            <Tooltip content="Live water level data from <strong>NOAA tidal gauges</strong>. High water events (above 5.5ft MLLW) indicate flood risk that can disrupt coastal businesses and infrastructure. This is the real-time environmental signal our models use." />
           </div>
           <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
             NOAA Station 9411340 · Santa Barbara Harbor · Last 7 days
           </div>
         </div>
-      </div>
-
-      <div className="explanation">
-        Live water level data from <strong>NOAA tidal gauges</strong>. High water events
-        (above 5.5ft MLLW) indicate flood risk that can disrupt coastal businesses and infrastructure.
-        This is the real-time environmental signal our models use.
       </div>
 
       {noData ? (
@@ -101,7 +97,7 @@ export default function NoaaPanel({ noaa, loading }) {
                 tick={{ fill: '#5a5b70', fontSize: 10 }}
                 tickFormatter={v => `${v}ft`}
               />
-              <Tooltip
+              <RechartsTooltip
                 contentStyle={{
                   background: 'rgba(18,19,26,0.95)',
                   border: '1px solid rgba(255,255,255,0.08)',
