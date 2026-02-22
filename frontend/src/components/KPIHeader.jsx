@@ -103,14 +103,20 @@ const KPIHeader = memo(function KPIHeader({ sim, loading }) {
         flexWrap: 'wrap',
       }}>
         <div style={{ position: 'relative' }}>
-          <div 
+          {/* Color lives on a separate layer from the animated text to prevent
+              the browser painting a solid rectangle during simultaneous
+              CSS color-transition + requestAnimationFrame number animation. */}
+          <div
             style={{
               fontSize: '4.5rem',
               fontWeight: 900,
               letterSpacing: '-0.04em',
               lineHeight: 1,
+              // No transition here — color change is instant so RAF isn't blocked
               color: color,
-              transition: 'color 0.4s ease-out',
+              // Force GPU compositing so text re-paints never flash a fill rect
+              willChange: 'color',
+              transform: 'translateZ(0)',
             }}
           >
             <AnimatedNumber
