@@ -88,6 +88,33 @@ def _get_synthetic_tracts():
     })
 
 
+def _assign_city(lat: float, lon: float) -> str:
+    """
+    Map a lat/lon to the nearest Santa Barbara County city/community
+    using approximate bounding boxes. Most-specific boxes listed first.
+    """
+    CITY_BOXES = [
+        # (lat_min, lat_max, lon_min, lon_max, name)
+        (34.95, 35.02, -120.61, -120.55, "Guadalupe"),
+        (34.85, 34.95, -120.51, -120.38, "Orcutt"),
+        (34.89, 35.02, -120.52, -120.37, "Santa Maria"),
+        (34.62, 34.69, -120.53, -120.42, "Lompoc"),
+        (34.70, 34.76, -120.54, -120.44, "Vandenberg Village"),
+        (34.60, 34.64, -120.24, -120.18, "Buellton"),
+        (34.59, 34.63, -120.17, -120.06, "Solvang / Santa Ynez"),
+        (34.64, 34.71, -120.14, -120.06, "Los Olivos"),
+        (34.40, 34.44, -119.89, -119.84, "Isla Vista"),
+        (34.40, 34.49, -120.04, -119.81, "Goleta"),
+        (34.41, 34.46, -119.67, -119.59, "Montecito"),
+        (34.38, 34.43, -119.54, -119.47, "Carpinteria"),
+        (34.37, 34.48, -119.89, -119.60, "Santa Barbara"),
+    ]
+    for lat_min, lat_max, lon_min, lon_max, city in CITY_BOXES:
+        if lat_min <= lat <= lat_max and lon_min <= lon <= lon_max:
+            return city
+    return "Unincorporated SB County"
+
+
 def get_tracts():
     global _tract_cache
     if _tract_cache is not None:
@@ -221,7 +248,9 @@ def api_tracts(severity: float = 0.5):
         labels = ['Low', 'Moderate', 'High', 'Critical']
         df['vulnerability'] = pd.cut(df['exodus_prob'], bins=bins, labels=labels).astype(str)
 
-    cols = ['tract_id','name','lat','lon','population','median_income','poverty_pct',
+    df['city'] = df.apply(lambda r: _assign_city(r['lat'], r['lon']), axis=1)
+
+    cols = ['tract_id','name','city','lat','lon','population','median_income','poverty_pct',
             'minority_pct','limited_english_pct','limited_english','ej_percentile',
             'coastal_jobs_pct','flood_zone','high_poverty','exodus_prob','vulnerability']
     return df[cols].to_dict(orient='records')
@@ -458,19 +487,41 @@ async def chat(payload: dict = Body(...)):
     # Build compact all-tracts table (sorted by exodus_prob desc)
     sorted_tracts = sorted(all_tracts, key=lambda t: t.get('exodus_prob', 0), reverse=True)
     tracts_table = "\n".join([
-        f"  {t.get('name','?')}: pop={t.get('population','?')}, income=${t.get('median_income',0):,}, "
+        f"  [{t.get('city','?')}] {t.get('name','?')}: pop={t.get('population','?')}, income=${t.get('median_income',0):,}, "
         f"EJ={t.get('ej_percentile','?')}%, coastal={t.get('coastal_jobs_pct','?')}%, "
         f"exodus={round((t.get('exodus_prob',0) or 0)*100,1)}%, vuln={t.get('vulnerability','?')}, "
         f"flood={'yes' if t.get('flood_zone') else 'no'}, poverty={t.get('poverty_pct','?')}%"
         for t in sorted_tracts
     ]) if sorted_tracts else "  (not loaded yet)"
 
+    # Build city-level averages table
+    from collections import defaultdict
+    city_groups: dict = defaultdict(list)
+    for t in all_tracts:
+        city_groups[t.get('city', 'Unincorporated SB County')].append(t)
+    city_rows = []
+    for city, tracts_in_city in sorted(city_groups.items()):
+        n = len(tracts_in_city)
+        avg_exodus = sum((t.get('exodus_prob', 0) or 0) for t in tracts_in_city) / n
+        avg_ej = sum((t.get('ej_percentile', 0) or 0) for t in tracts_in_city) / n
+        avg_income = sum((t.get('median_income', 0) or 0) for t in tracts_in_city) / n
+        total_pop = sum((t.get('population', 0) or 0) for t in tracts_in_city)
+        flood_count = sum(1 for t in tracts_in_city if t.get('flood_zone'))
+        city_rows.append(
+            f"  {city} ({n} tracts, pop={total_pop:,}): avg_exodus={round(avg_exodus*100,1)}%, "
+            f"avg_EJ={round(avg_ej,1)}%, avg_income=${avg_income:,.0f}, flood_tracts={flood_count}"
+        )
+    city_table = "\n".join(city_rows) if city_rows else "  (not loaded yet)"
+
     tract_selected = bool(tract.get('name'))
 
     system_prompt = f"""You are a coastal resilience policy analyst for Santa Barbara County, California.
 You have access to real-time data from the Coastal Labor-Resilience Engine dashboard.
 
-ALL 109 CENSUS TRACTS (sorted by exodus risk, highest first):
+CITY / COMMUNITY SUMMARY (aggregated from all tracts):
+{city_table}
+
+ALL 109 CENSUS TRACTS (sorted by exodus risk, highest first; city shown in brackets):
 {tracts_table}
 
 SELECTED TRACT: {tract.get('name', 'None (no tract clicked on map)')}
@@ -494,10 +545,12 @@ SIMULATION RESULTS:
 - Emergency Fund: ${emergency:,.0f}
 
 INSTRUCTIONS:
-- You have ALL tract data in the table above — use it to answer questions about any specific tract by name without requiring the user to click anything.
+- You have ALL tract data in the tables above — use it to answer questions about any specific tract by name or any city/community without requiring the user to click anything.
+- For city-level questions (e.g. "average exodus risk in Santa Maria"), use the CITY/COMMUNITY SUMMARY table directly.
 - If a SELECTED TRACT is shown, prioritize its data for context.
 - Answer concisely and specifically. Focus on actionable policy insights.
-- When comparing tracts or ranking by risk, use the full table above."""
+- When comparing tracts or ranking by risk, use the full tables above.
+- Cities/communities in Santa Barbara County include: Santa Barbara, Goleta, Montecito, Carpinteria, Isla Vista, Lompoc, Buellton, Solvang / Santa Ynez, Los Olivos, Santa Maria, Orcutt, Guadalupe, Vandenberg Village, Unincorporated SB County."""
 
     try:
         client = OpenAI(
