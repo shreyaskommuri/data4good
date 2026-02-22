@@ -602,62 +602,130 @@ INSTRUCTIONS:
         return {"reply": f"Chat error: {err}"}
 
 
-# Economic Impact Vulnerability Scoring
+# Economic Impact Vulnerability Scoring (Scenario Ensemble Model)
 _economic_impact_cache = None
-_economic_model_instance = None
+
+
+def _compute_structural_exposure(tract_row: pd.Series) -> float:
+    """Build a multi-factor structural exposure index in [0, 1]."""
+    flood = 1.0 if bool(tract_row.get("flood_zone", False)) else 0.0
+    coastal = min(max(float(tract_row.get("coastal_jobs_pct", 0.0)) / 25.0, 0.0), 1.0)
+    poverty = min(max(float(tract_row.get("poverty_pct", 0.0)) / 30.0, 0.0), 1.0)
+    language = min(max(float(tract_row.get("limited_english_pct", 0.0)) / 30.0, 0.0), 1.0)
+    minority = min(max(float(tract_row.get("minority_pct", 0.0)) / 80.0, 0.0), 1.0)
+    income = float(tract_row.get("median_income", 75000) or 75000)
+    income_risk = min(max((150000.0 - income) / (150000.0 - 30000.0), 0.0), 1.0)
+
+    return (
+        0.25 * flood
+        + 0.20 * coastal
+        + 0.20 * poverty
+        + 0.12 * language
+        + 0.10 * minority
+        + 0.13 * income_risk
+    )
+
+
+def _simulate_recovery_risk_for_tract(tract_row: pd.Series) -> dict:
+    """
+    Scenario-ensemble recovery risk model.
+    Combines:
+      1) ODE recovery stress under multiple shock severities/durations
+      2) Markov displacement pressure under same shock profiles
+    """
+    structural_exposure = _compute_structural_exposure(tract_row)
+
+    severity_grid = [0.30, 0.50, 0.70, 0.90]
+    duration_grid = [7, 21, 45]
+
+    scenario_scores = []
+    for severity in severity_grid:
+        for duration in duration_grid:
+            # Data-driven parameters (not single-factor EJ-only scaling)
+            r_adj = max(0.03, 0.11 * (1.0 - 0.35 * structural_exposure))
+            K_adj = max(0.70, 0.97 - 0.12 * structural_exposure)
+            friction_percentile = int(round(min(max(structural_exposure * 100.0, 1.0), 99.0)))
+
+            ode_sol = run_simulation(
+                severity=severity,
+                duration=duration,
+                start_day=30,
+                r=r_adj,
+                K=K_adj,
+                ej_percentile=friction_percentile,
+                n_days=365,
+            )
+
+            min_labor = float(ode_sol.get("min_labor_force") or 0.0)
+            recovery_time = ode_sol.get("recovery_time")
+            recovery_days = 365.0 if recovery_time is None else min(float(recovery_time), 365.0)
+
+            # ODE stress: larger drop + slower recovery -> higher risk
+            drop_component = 1.0 - min_labor
+            time_component = recovery_days / 365.0
+            ode_stress = 0.55 * drop_component + 0.45 * time_component
+
+            # Markov pressure: unemployment + transitioning from coastal state
+            chain = MarkovTransitionMatrix()
+            shock = ShockParameters(severity=severity, duration_days=duration)
+            chain.apply_shock(shock)
+            to_unemployed = chain.get_transition_prob(LaborState.COASTAL, LaborState.UNEMPLOYED)
+            to_transitioning = chain.get_transition_prob(LaborState.COASTAL, LaborState.TRANSITIONING)
+            displacement_pressure = to_unemployed + to_transitioning
+
+            # Blend: primary signal from observed recovery dynamics, secondary from transitions
+            scenario_risk = 0.70 * ode_stress + 0.30 * displacement_pressure
+            scenario_scores.append(float(max(0.0, min(1.0, scenario_risk))))
+
+    mean_risk = float(np.mean(scenario_scores)) if scenario_scores else 0.0
+    p10 = float(np.percentile(scenario_scores, 10)) if scenario_scores else mean_risk
+    p90 = float(np.percentile(scenario_scores, 90)) if scenario_scores else mean_risk
+
+    score = round(mean_risk * 100.0, 1)
+    if score >= 75:
+        level = "Critical"
+    elif score >= 50:
+        level = "High"
+    elif score >= 25:
+        level = "Moderate"
+    else:
+        level = "Low"
+
+    return {
+        "vulnerability_score": score,
+        "risk_level": level,
+        "confidence_interval": {
+            "p10": round(p10 * 100.0, 1),
+            "p90": round(p90 * 100.0, 1),
+        },
+        "structural_exposure": round(structural_exposure * 100.0, 1),
+    }
 
 @app.get("/api/economic-impact")
 def api_economic_impact():
-    """Economic vulnerability scores for census tracts (0-100)."""
-    global _economic_impact_cache, _economic_model_instance
+    """Model-based recovery risk scores for census tracts (0-100)."""
+    global _economic_impact_cache
 
     if _economic_impact_cache is not None:
         return _economic_impact_cache
 
     try:
-        from src.models import EconomicImpactModel, EconomicImpactFeatureExtractor
-
-        model_path = Path("models/economic_impact_model.pkl")
-        if not model_path.exists():
-            return {
-                "tracts": [],
-                "distribution": {},
-                "stats": {},
-                "error": "Model not trained. Run: python train_economic_model.py",
-            }
-
-        if _economic_model_instance is None:
-            _economic_model_instance = EconomicImpactModel.load(model_path)
-
         tracts_df = get_tracts()
-        extractor = EconomicImpactFeatureExtractor()
-        extractor.load_data(tracts_df)
-        X, _ = extractor.extract_batch()
-        predictions = _economic_model_instance.predict(X)
 
         tracts_with_scores = []
-        for i, (_, row) in enumerate(X.iterrows()):
-            tract_id = row["tract_id"]
-            score = float(predictions[i])
-
-            if score >= 75:
-                risk_level = "Critical"
-            elif score >= 50:
-                risk_level = "High"
-            elif score >= 25:
-                risk_level = "Moderate"
-            else:
-                risk_level = "Low"
-
-            tract_data = tracts_df[tracts_df["tract_id"] == tract_id].iloc[0]
+        for _, tract_data in tracts_df.iterrows():
+            tract_id = tract_data["tract_id"]
+            model_out = _simulate_recovery_risk_for_tract(tract_data)
 
             tracts_with_scores.append({
                 "tract_id": tract_id,
                 "tract_name": tract_data.get("name", f"Tract {tract_id[-4:]}"),
                 "lat": float(tract_data.get("lat", 34.42)),
                 "lon": float(tract_data.get("lon", -119.70)),
-                "vulnerability_score": round(score, 1),
-                "risk_level": risk_level,
+                "vulnerability_score": model_out["vulnerability_score"],
+                "risk_level": model_out["risk_level"],
+                "confidence_interval": model_out["confidence_interval"],
+                "structural_exposure": model_out["structural_exposure"],
                 "population": int(tract_data.get("population", 5000)),
                 "median_income": int(tract_data.get("median_income", 75000)),
                 "poverty_rate": float(tract_data.get("poverty_pct", 10)),
@@ -680,6 +748,7 @@ def api_economic_impact():
                 "max_vulnerability": round(max(scores), 1),
                 "min_vulnerability": round(min(scores), 1),
                 "high_risk_count": risk_counts["High"] + risk_counts["Critical"],
+                "model_type": "scenario_ensemble_ode_markov",
             },
         }
 

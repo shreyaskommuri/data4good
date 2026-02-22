@@ -7,7 +7,6 @@ import ControlPanel from './components/ControlPanel';
 import TractMap from './components/TractMap';
 import RecoveryChart from './components/RecoveryChart';
 import MarkovPanel from './components/MarkovPanel';
-import HousingPanel from './components/HousingPanel';
 import WorkforcePanel from './components/WorkforcePanel';
 import NoaaPanel from './components/NoaaPanel';
 import PolicySection from './components/PolicySection';
@@ -72,7 +71,6 @@ export default function App() {
   // Fetch static data once
   const noaa = useApi(() => api.getNoaa(), []);
   const workforce = useApi(() => api.getWorkforce(), []);
-  const housing = useApi(() => api.getHousing(), []);
   const economicImpact = useApi(() => api.getEconomicImpact(), []);
 
   // Projected workforce shifts based on severity
@@ -225,11 +223,6 @@ export default function App() {
         {/* Economic Impact Scoring (full width) */}
         <div style={{ marginBottom: 24 }}>
           <EconomicImpactPanel impact={economicImpact.data} loading={economicImpact.loading} />
-        </div>
-
-        {/* Housing */}
-        <div style={{ marginBottom: 24 }}>
-          <HousingPanel housing={housing.data} loading={housing.loading} />
         </div>
 
         {/* Policy */}

@@ -35,13 +35,13 @@ export default function EconomicImpactPanel({ impact, loading }) {
           </div>
           <div>
             <div className="impact-title">Economic Impact Score</div>
-            <div className="impact-subtitle">XGBoost Regression · tract-level risk</div>
+            <div className="impact-subtitle">Scenario Ensemble · ODE + Markov tract risk</div>
           </div>
         </div>
         <div className="impact-empty">
           <Activity size={28} />
-          <div>Model not available</div>
-          <div className="impact-empty-hint">Run: python train_economic_model.py</div>
+          <div>Risk model unavailable</div>
+          <div className="impact-empty-hint">Check backend data sources and try refresh</div>
         </div>
       </div>
     );
@@ -64,6 +64,15 @@ export default function EconomicImpactPanel({ impact, loading }) {
 
   const topTracts = impact.tracts.slice(0, 4);
 
+  let averageMeaning = 'Most tracts are likely to recover relatively quickly.';
+  if (meanScore >= 75) {
+    averageMeaning = 'Most tracts are likely to face severe, long recovery delays.';
+  } else if (meanScore >= 50) {
+    averageMeaning = 'Many tracts are likely to face slower-than-normal recovery.';
+  } else if (meanScore >= 25) {
+    averageMeaning = 'Recovery is mixed: some tracts may face meaningful delays.';
+  }
+
   return (
     <div className="glass-card impact-panel" style={{ padding: 24 }}>
       {/* Header */}
@@ -72,24 +81,27 @@ export default function EconomicImpactPanel({ impact, loading }) {
           <Activity size={18} />
         </div>
         <div style={{ flex: 1 }}>
-          <div className="impact-title">Climate Vulnerability</div>
+          <div className="impact-title">Recovery Risk</div>
           <div className="impact-subtitle">
-            Which coastal communities face the greatest economic risk?
+            Which communities are most likely to recover slowly after a climate shock?
           </div>
         </div>
       </div>
 
       {/* Clear Explainer */}
       <div className="impact-explainer">
-        We analyze flood exposure, income levels, housing costs, and job vulnerability to score each area from <strong>0 (low risk) to 100 (high risk)</strong>.
+        We simulate multiple shock scenarios and combine recovery dynamics with workforce transition pressure to produce a <strong>0–100 recovery risk score</strong> for each tract.
       </div>
 
       {/* Main Score with Context */}
       <div className="impact-hero-simple">
         <div className="impact-score-context">
           <div>
-            <div className="impact-hero-label">Average Risk</div>
+              <div className="impact-hero-label">Average Recovery Risk</div>
             <div className="impact-hero-score-large">{meanScore}</div>
+            <div style={{ marginTop: 4, color: 'var(--text-muted)', fontSize: 13 }}>
+              {averageMeaning}
+            </div>
           </div>
           <div className="impact-score-details">
             <div className="impact-score-stat">
@@ -110,7 +122,7 @@ export default function EconomicImpactPanel({ impact, loading }) {
 
       {/* Visual Distribution */}
       <div className="impact-distribution">
-        <div className="impact-distribution-title">How areas are distributed</div>
+        <div className="impact-distribution-title">How many neighborhoods are in each risk tier</div>
         <div className="impact-bar">
           {segments.map((segment) => {
             const pct = (segment.count / total) * 100;
@@ -127,19 +139,27 @@ export default function EconomicImpactPanel({ impact, loading }) {
           })}
         </div>
         <div className="impact-distribution-legend">
-          {segments.map((segment) => (
+          {segments.map((segment) => {
+            const labelMap = {
+              Low: 'Low (faster recovery likely)',
+              Moderate: 'Moderate (some delay risk)',
+              High: 'High (slow recovery likely)',
+              Critical: 'Critical (major delay risk)',
+            };
+            return (
             <div key={segment.key} className="impact-legend-item">
               <span className="impact-legend-dot" style={{ background: segment.color }} />
-              <span>{segment.key}</span>
+              <span>{labelMap[segment.key] || segment.key}</span>
               <span className="legend-count">({segment.count})</span>
             </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
       {/* Top Areas - Clear and Scannable */}
       <div className="impact-list-simple">
-        <div className="impact-section-title">Areas with highest risk</div>
+        <div className="impact-section-title">Highest-priority tracts</div>
         {topTracts.map((tract, index) => {
           const style = RISK_STYLES[tract.risk_level] || RISK_STYLES.Moderate;
           return (
@@ -152,7 +172,7 @@ export default function EconomicImpactPanel({ impact, loading }) {
                 <div className="impact-item-detail">
                   <span style={{ color: style.color, fontWeight: 600 }}>{tract.risk_level} Risk</span>
                   <span className="detail-sep">•</span>
-                  Score {tract.vulnerability_score}
+                  Risk score {tract.vulnerability_score}/100
                   <span className="detail-sep">•</span>
                   ${Math.round(tract.median_income / 1000)}k income
                 </div>
