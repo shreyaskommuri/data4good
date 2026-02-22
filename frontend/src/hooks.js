@@ -14,13 +14,13 @@ export function useApi(fetcher, deps = [], { enabled = true } = {}) {
   const [loading, setLoading] = useState(enabled);
   const [error, setError] = useState(null);
   const hasInitialData = useRef(false);
+  const requestIdRef = useRef(0);
 
   const refetch = useCallback(() => {
     if (!enabled) return;
 
-    // Only show loading state on initial load (when we don't have data yet)
-    // For subsequent updates, update data in background without showing loading
     const isInitialLoad = !hasInitialData.current;
+    const thisRequestId = ++requestIdRef.current;
 
     if (isInitialLoad) {
       setLoading(true);
@@ -29,11 +29,16 @@ export function useApi(fetcher, deps = [], { enabled = true } = {}) {
 
     fetcher()
       .then((newData) => {
+        if (thisRequestId !== requestIdRef.current) return;
         setData(newData);
         hasInitialData.current = true;
       })
-      .catch(setError)
+      .catch((err) => {
+        if (thisRequestId !== requestIdRef.current) return;
+        setError(err);
+      })
       .finally(() => {
+        if (thisRequestId !== requestIdRef.current) return;
         if (isInitialLoad) {
           setLoading(false);
         }
@@ -52,12 +57,18 @@ export function useAnimatedNumber(targetValue, duration = 500) {
   const animationFrameRef = useRef(null);
   const startValueRef = useRef(targetValue);
   const startTimeRef = useRef(null);
+  const targetRef = useRef(targetValue);
 
   useEffect(() => {
-    if (targetValue === displayValue) return;
+    if (targetValue === targetRef.current && targetValue === displayValue) return;
 
+    targetRef.current = targetValue;
     startValueRef.current = displayValue;
     startTimeRef.current = null;
+
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+    }
 
     const animate = (currentTime) => {
       if (!startTimeRef.current) {
@@ -66,17 +77,17 @@ export function useAnimatedNumber(targetValue, duration = 500) {
 
       const elapsed = currentTime - startTimeRef.current;
       const progress = Math.min(elapsed / duration, 1);
+      const easeInOut = progress < 0.5
+        ? 16 * progress ** 5
+        : 1 - (-2 * progress + 2) ** 5 / 2;
 
-      // Easing function (ease-out)
-      const easeOut = 1 - Math.pow(1 - progress, 3);
-
-      const current = startValueRef.current + (targetValue - startValueRef.current) * easeOut;
+      const current = startValueRef.current + (targetRef.current - startValueRef.current) * easeInOut;
       setDisplayValue(current);
 
       if (progress < 1) {
         animationFrameRef.current = requestAnimationFrame(animate);
       } else {
-        setDisplayValue(targetValue);
+        setDisplayValue(targetRef.current);
       }
     };
 
@@ -87,7 +98,9 @@ export function useAnimatedNumber(targetValue, duration = 500) {
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [targetValue, duration, displayValue]);
+  // Only re-run when target changes, NOT when displayValue changes
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [targetValue, duration]);
 
   return displayValue;
 }

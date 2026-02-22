@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Sliders, History } from 'lucide-react';
 
 const PRESETS = [
@@ -35,90 +35,112 @@ const PRESETS = [
 ];
 
 function Slider({ label, value, onChange, min, max, step, format }) {
-  // Local state for immediate visual feedback (slider thumb position)
   const [localValue, setLocalValue] = useState(value);
+  const [dragging, setDragging] = useState(false);
   const isDraggingRef = useRef(false);
 
-  // Sync local value when prop changes (but not while dragging)
   useEffect(() => {
     if (!isDraggingRef.current) {
       setLocalValue(value);
     }
   }, [value]);
 
-  // Handle slider change - update local state immediately for visual feedback
-  // and update parent state (which is debounced)
   const handleChange = (e) => {
     const newValue = parseFloat(e.target.value);
-    setLocalValue(newValue); // Immediate visual update
+    setLocalValue(newValue);
     isDraggingRef.current = true;
-    onChange(newValue); // Update parent (debounced in App.jsx)
+    onChange(newValue);
   };
 
-  const handleMouseDown = () => {
-    isDraggingRef.current = true;
-  };
-
-  const handleMouseUp = () => {
+  const handlePointerDown = () => { isDraggingRef.current = true; setDragging(true); };
+  const handlePointerUp = () => {
     isDraggingRef.current = false;
-    // Ensure final value is synced
+    setDragging(false);
     setLocalValue(value);
   };
 
+  const pct = ((localValue - min) / (max - min)) * 100;
+
   return (
-    <div style={{ marginBottom: 16 }}>
+    <div className={`slider-row${dragging ? ' active' : ''}`}>
       <div style={{
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         marginBottom: 6,
       }}>
-        <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{label}</span>
-        <span style={{
-          fontFamily: 'var(--font-mono)', fontSize: '0.8rem',
-          color: 'var(--accent-cyan)', fontWeight: 500,
-        }}>
+        <span className="slider-label">{label}</span>
+        <span className={`slider-value${dragging ? ' pop' : ''}`}>
           {format ? format(localValue) : localValue}
         </span>
       </div>
-      <input
-        type="range"
-        min={min} max={max} step={step}
-        value={localValue}
-        onChange={handleChange}
-        onMouseDown={handleMouseDown}
-        onMouseUp={handleMouseUp}
-        onTouchStart={handleMouseDown}
-        onTouchEnd={handleMouseUp}
-        style={{
-          width: '100%',
-          cursor: 'pointer',
-        }}
-      />
+      <div className="slider-track-wrap">
+        <div className="slider-fill" style={{ width: `${pct}%` }} />
+        <input
+          type="range"
+          min={min} max={max} step={step}
+          value={localValue}
+          onChange={handleChange}
+          onPointerDown={handlePointerDown}
+          onPointerUp={handlePointerUp}
+          onLostPointerCapture={handlePointerUp}
+        />
+      </div>
     </div>
   );
 }
 
-export default function ControlPanel({ params, onChange }) {
-  const set = (key) => (val) => onChange({ ...params, [key]: val });
+export default function ControlPanel({ params, onChange, onUpdating }) {
+  const [localParams, setLocalParams] = useState(params);
+  const debounceRef = useRef(null);
+  const committedRef = useRef(params);
 
-  const activePresetIndex = useMemo(() => {
-    return PRESETS.findIndex(p =>
-      p.severity === params.severity &&
-      p.duration === params.duration &&
-      p.start_day === params.start_day &&
-      p.r === params.r &&
-      p.K === params.K
-    );
+  // Sync local state when parent params change (e.g. initial load)
+  useEffect(() => {
+    committedRef.current = params;
+    setLocalParams(params);
   }, [params]);
 
-  const applyPreset = (preset) => {
-    onChange({
+  const flush = useCallback((next) => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    onUpdating?.(true);
+    debounceRef.current = setTimeout(() => {
+      committedRef.current = next;
+      onChange(next);
+      onUpdating?.(false);
+    }, 300);
+  }, [onChange, onUpdating]);
+
+  const set = useCallback((key) => (val) => {
+    setLocalParams(prev => {
+      const next = { ...prev, [key]: val };
+      flush(next);
+      return next;
+    });
+  }, [flush]);
+
+  const applyPreset = useCallback((preset) => {
+    const next = {
       severity: preset.severity,
       duration: preset.duration,
       start_day: preset.start_day,
       r: preset.r,
       K: preset.K,
-    });
-  };
+      sim_days: 365,
+    };
+    setLocalParams(next);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    onChange(next);
+    onUpdating?.(false);
+  }, [onChange, onUpdating]);
+
+  const activePresetIndex = useMemo(() => {
+    return PRESETS.findIndex(p =>
+      p.severity === localParams.severity &&
+      p.duration === localParams.duration &&
+      p.start_day === localParams.start_day &&
+      p.r === localParams.r &&
+      p.K === localParams.K
+    );
+  }, [localParams]);
 
   return (
     <div className="glass-card" style={{ padding: 24 }}>
@@ -141,101 +163,119 @@ export default function ControlPanel({ params, onChange }) {
         </div>
       </div>
 
-      {/* Historical event presets */}
-      <div style={{ marginBottom: 20 }}>
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8,
-        }}>
-          <History size={13} style={{ color: 'var(--text-muted)' }} />
-          <span style={{
-            fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)',
-            textTransform: 'uppercase', letterSpacing: '0.05em',
-          }}>
-            Historical Events
-          </span>
-          <span style={{
-            fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 400,
-            textTransform: 'none', letterSpacing: 0,
-          }}>
-            — real SB County disasters
-          </span>
-        </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-          {PRESETS.map((preset, i) => {
-            const isActive = i === activePresetIndex;
-            return (
-              <button
-                key={i}
-                onClick={() => applyPreset(preset)}
-                title={preset.desc}
-                style={{
-                  padding: '5px 10px',
-                  borderRadius: 8,
-                  border: `1px solid ${isActive ? 'rgba(34,211,238,0.5)' : 'rgba(255,255,255,0.08)'}`,
-                  background: isActive ? 'rgba(34,211,238,0.12)' : 'rgba(255,255,255,0.03)',
-                  color: isActive ? '#22d3ee' : 'var(--text-secondary)',
-                  fontSize: '0.7rem',
-                  fontWeight: isActive ? 600 : 500,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  lineHeight: 1.3,
-                  textAlign: 'left',
-                }}
-              >
-                <span>{preset.name}</span>
-                <span style={{
-                  marginLeft: 4,
-                  opacity: 0.55,
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: '0.65rem',
-                }}>
-                  '{String(preset.year).slice(-2)}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      <div style={{
-        height: 1, background: 'rgba(255,255,255,0.06)', marginBottom: 18,
-      }} />
-
       <Slider
         label="Shock Severity"
-        value={params.severity}
+        value={localParams.severity}
         onChange={set('severity')}
         min={0} max={1} step={0.05}
         format={v => `${(v * 100).toFixed(0)}%`}
       />
       <Slider
         label="Duration (days)"
-        value={params.duration}
+        value={localParams.duration}
         onChange={set('duration')}
         min={1} max={90} step={1}
         format={v => `${v}d`}
       />
       <Slider
         label="Shock Start Day"
-        value={params.start_day}
+        value={localParams.start_day}
         onChange={set('start_day')}
         min={1} max={365} step={1}
         format={v => `Day ${v}`}
       />
       <Slider
         label="Recovery Rate (r)"
-        value={params.r}
+        value={localParams.r}
         onChange={set('r')}
         min={0.01} max={0.30} step={0.01}
         format={v => v.toFixed(2)}
       />
       <Slider
         label="Carrying Capacity (K)"
-        value={params.K}
+        value={localParams.K}
         onChange={set('K')}
         min={0.8} max={1.0} step={0.01}
         format={v => `${(v * 100).toFixed(0)}%`}
       />
+
+      {/* Divider */}
+      <div style={{
+        height: 1, background: 'rgba(255,255,255,0.06)', margin: '6px 0 14px',
+      }} />
+
+      {/* Disaster presets */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10,
+      }}>
+        <History size={13} style={{ color: 'var(--text-muted)' }} />
+        <span style={{
+          fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)',
+          textTransform: 'uppercase', letterSpacing: '0.05em',
+        }}>
+          Previous SB County Disasters
+        </span>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {PRESETS.map((preset, i) => {
+          const isActive = i === activePresetIndex;
+          return (
+            <button
+              key={i}
+              onClick={() => applyPreset(preset)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                padding: '8px 12px',
+                borderRadius: 8,
+                border: `1px solid ${isActive ? 'rgba(34,211,238,0.45)' : 'rgba(255,255,255,0.06)'}`,
+                background: isActive ? 'rgba(34,211,238,0.1)' : 'rgba(255,255,255,0.02)',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                textAlign: 'left',
+                width: '100%',
+              }}
+            >
+              <span style={{
+                minWidth: 32, height: 32, borderRadius: 7,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontFamily: 'var(--font-mono)',
+                fontSize: '0.65rem', fontWeight: 700,
+                background: isActive ? 'rgba(34,211,238,0.15)' : 'rgba(255,255,255,0.04)',
+                color: isActive ? '#22d3ee' : 'var(--text-muted)',
+                transition: 'all 0.2s ease',
+              }}>
+                {preset.year}
+              </span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{
+                  fontSize: '0.75rem',
+                  fontWeight: isActive ? 600 : 500,
+                  color: isActive ? '#22d3ee' : 'var(--text-primary)',
+                  transition: 'color 0.2s ease',
+                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                }}>
+                  {preset.name}
+                </div>
+                <div style={{
+                  fontSize: '0.63rem', color: 'var(--text-muted)',
+                  marginTop: 1,
+                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                }}>
+                  {preset.desc}
+                </div>
+              </div>
+              <span style={{
+                fontSize: '0.6rem', fontFamily: 'var(--font-mono)',
+                color: isActive ? 'rgba(34,211,238,0.7)' : 'var(--text-muted)',
+                whiteSpace: 'nowrap',
+                transition: 'color 0.2s ease',
+              }}>
+                {(preset.severity * 100).toFixed(0)}% · {preset.duration}d
+              </span>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

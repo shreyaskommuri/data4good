@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef, useMemo, lazy, Suspense } from 'react'
+import React, { useState, lazy, Suspense } from 'react'
 import { useApi } from './hooks';
 import * as api from './api';
 
@@ -88,8 +88,7 @@ function PanelSkeleton({ height = 240 }) {
 }
 
 export default function App() {
-  // Local state for immediate slider feedback (no API calls)
-  const [localParams, setLocalParams] = useState({
+  const [params, setParams] = useState({
     severity: 0.5,
     duration: 21,
     start_day: 30,
@@ -99,27 +98,7 @@ export default function App() {
   });
   
   const [selectedTract, setSelectedTract] = useState(null);
-
-  // Debounced params that trigger API calls
-  const [params, setParams] = useState(localParams);
-  const debounceTimerRef = useRef(null);
-
-  // Debounce param updates - only update params after user stops sliding
-  useEffect(() => {
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
-    
-    debounceTimerRef.current = setTimeout(() => {
-      setParams(localParams);
-    }, 300); // 300ms delay after user stops adjusting
-
-    return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
-    };
-  }, [localParams]);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   // ── Critical path: load tracts + simulation first ──────────────────────────
   const sim = useApi(
@@ -130,6 +109,12 @@ export default function App() {
     () => api.getTracts(params.severity),
     [params.severity]
   );
+  const tractBoundaries = useApi(
+    () => api.getTractBoundaries(params.severity),
+    [params.severity]
+  );
+  const cityBoundaries = useApi(() => api.getCityBoundaries(), []);
+  const countyOutline = useApi(() => api.getCountyOutline(), []);
 
   // Secondary data fires only after both critical datasets have landed.
   // This keeps the browser focused on the critical path first.
@@ -154,10 +139,6 @@ export default function App() {
     { enabled: primaryReady }
   );
 
-  // Check if params are being debounced (localParams !== params)
-  const isUpdating = useMemo(() => {
-    return JSON.stringify(localParams) !== JSON.stringify(params);
-  }, [localParams, params]);
 
   return (
     <div style={{
@@ -275,13 +256,16 @@ export default function App() {
           gap: 24,
           marginBottom: 24,
         }}>
-          <ControlPanel params={localParams} onChange={setLocalParams} />
+          <ControlPanel params={params} onChange={setParams} onUpdating={setIsUpdating} />
           <Suspense fallback={<PanelSkeleton height={480} />}>
             <TractMap
               tracts={tracts.data}
               loading={tracts.loading}
               onSelectTract={setSelectedTract}
-              economicImpact={economicImpact.data}
+              tractBoundaries={tractBoundaries.data}
+              cityBoundaries={cityBoundaries.data}
+              countyOutline={countyOutline.data}
+              selectedTract={selectedTract}
             />
           </Suspense>
         </div>
@@ -323,7 +307,7 @@ export default function App() {
         {/* Economic Impact Scoring (full width) */}
         <div style={{ marginBottom: 24 }}>
           <Suspense fallback={<PanelSkeleton height={300} />}>
-            <EconomicImpactPanel impact={economicImpact.data} loading={economicImpact.loading} />
+            <EconomicImpactPanel impact={economicImpact.data} loading={economicImpact.loading} onSelectTract={setSelectedTract} selectedTract={selectedTract} />
           </Suspense>
         </div>
 

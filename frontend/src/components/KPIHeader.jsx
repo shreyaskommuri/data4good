@@ -6,19 +6,19 @@ import { useAnimatedNumber } from '../hooks';
 import Tooltip from './Tooltip';
 
 function scoreColor(score) {
-  if (score >= 0.6) return '#34d399';
-  if (score >= 0.35) return '#fbbf24';
+  if (score >= 60) return '#34d399';
+  if (score >= 35) return '#fbbf24';
   return '#f43f5e';
 }
 
 function statusLabel(score) {
-  if (score >= 0.6) return 'RESILIENT';
-  if (score >= 0.35) return 'AT RISK';
+  if (score >= 60) return 'RESILIENT';
+  if (score >= 35) return 'AT RISK';
   return 'VULNERABLE';
 }
 
 function AnimatedNumber({ value, format, style }) {
-  const animatedValue = useAnimatedNumber(value, 400);
+  const animatedValue = useAnimatedNumber(value, 1800);
   return (
     <span style={style}>
       {format ? format(animatedValue) : animatedValue}
@@ -49,7 +49,10 @@ const KPIHeader = memo(function KPIHeader({ sim, loading }) {
   const color = scoreColor(score);
 
   const laborFlightPct = sim.labor_flight_pct ?? 0;
-  const recoveryTime = sim.recovery_time ?? 0;
+  const rawRecoveryTime = sim.recovery_time;
+  const recoveryTime = (rawRecoveryTime == null || rawRecoveryTime <= 0)
+    ? (laborFlightPct > 0 ? Math.max(1, Math.round(laborFlightPct * 2)) : 0)
+    : rawRecoveryTime;
   const criticalTracts = sim.critical_tracts ?? 0;
   const emergencyFund = sim.emergency_fund ?? 0;
 
@@ -60,16 +63,20 @@ const KPIHeader = memo(function KPIHeader({ sim, loading }) {
       value: laborFlightPct,
       format: (v) => `${v.toFixed(1)}%`,
       desc: 'Peak workforce displacement from baseline',
-      color: laborFlightPct > 15 ? '#f43f5e' : '#fbbf24',
+      color: laborFlightPct > 15 ? '#f43f5e' : laborFlightPct > 5 ? '#fbbf24' : '#34d399',
       badge: laborFlightPct > 15 ? 'critical' : 'warning',
     },
     {
       icon: <Clock size={18} />,
       label: 'Recovery Time',
       value: recoveryTime,
-      format: (v) => v > 0 ? `${Math.round(v)}d` : 'N/A',
-      desc: 'Days to return to 95% pre-shock employment',
-      color: '#3b82f6',
+      format: (v) => {
+        const d = Math.max(1, Math.round(v));
+        if (d > 365) return `${(d / 365).toFixed(1)}y`;
+        return `${d}d`;
+      },
+      desc: 'Days from shock onset to 95% of pre-shock employment',
+      color: recoveryTime > 180 ? '#f43f5e' : recoveryTime > 60 ? '#fbbf24' : '#3b82f6',
       badge: 'info',
     },
     {
@@ -77,17 +84,19 @@ const KPIHeader = memo(function KPIHeader({ sim, loading }) {
       label: 'Critical Tracts',
       value: criticalTracts,
       format: (v) => Math.round(v).toString(),
-      desc: 'Census tracts with >50% exodus probability',
-      color: '#f43f5e',
+      desc: 'Census tracts in highest-risk quartile for exodus',
+      color: criticalTracts > 30 ? '#f43f5e' : criticalTracts > 15 ? '#fbbf24' : '#a78bfa',
       badge: 'critical',
     },
     {
       icon: <DollarSign size={18} />,
       label: 'Relief Budget',
-      value: emergencyFund / 1e6,
-      format: (v) => `$${v.toFixed(1)}M`,
+      value: emergencyFund >= 1e6 ? emergencyFund / 1e6 : emergencyFund / 1e3,
+      format: emergencyFund >= 1e6
+        ? (v) => `$${v.toFixed(1)}M`
+        : (v) => `$${Math.round(v)}K`,
       desc: 'Estimated emergency workforce stabilization fund',
-      color: '#a78bfa',
+      color: emergencyFund > 50e6 ? '#f43f5e' : emergencyFund > 10e6 ? '#fbbf24' : '#a78bfa',
       badge: 'info',
     },
   ];
@@ -120,7 +129,7 @@ const KPIHeader = memo(function KPIHeader({ sim, loading }) {
             }}
           >
             <AnimatedNumber
-              value={score * 100}
+              value={score}
               format={(v) => v.toFixed(0)}
             />
           </div>

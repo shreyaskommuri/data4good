@@ -280,14 +280,58 @@ def run_simulation(severity, duration, start_day, r, K, ej_percentile, n_days):
         K_reduction=0.3 * severity, beta_increase=0.02 * severity
     )
     ode.add_shock(shock)
-    solution = ode.solve(L0=0.92, t_span=(0, n_days), n_points=min(n_days, 200))
+
+    # Ensure the simulation window extends well past the shock end so recovery
+    # can be observed.  Use at least shock_end + 365 or caller's n_days,
+    # whichever is larger.
+    shock_end = start_day + duration
+    effective_days = max(n_days, shock_end + 365)
+
+    n_points = max(effective_days * 2, duration * 10, 400)
+    solution = ode.solve(L0=0.92, t_span=(0, effective_days), n_points=n_points)
+
+    # Measure recovery time from shock start, not from day 0
+    shock_start_idx = int(np.searchsorted(solution.t, start_day))
+    if shock_start_idx >= len(solution.t):
+        shock_start_idx = 0
+    pre_shock_level = float(solution.L[max(0, shock_start_idx - 1)])
+    post_shock_L = solution.L[shock_start_idx:]
+    post_shock_t = solution.t[shock_start_idx:]
+
+    threshold = 0.95
+    recovery_target = pre_shock_level * threshold
+    trough_idx = int(np.argmin(post_shock_L))
+    dip_depth = pre_shock_level - float(np.min(post_shock_L))
+
+    recovery_from_shock = None
+    below = np.where(post_shock_L < recovery_target)[0]
+    if len(below) > 0:
+        last_below = below[-1]
+        if last_below < len(post_shock_L) - 1:
+            recovery_from_shock = float(post_shock_t[last_below + 1] - post_shock_t[0])
+        else:
+            recovery_from_shock = float(post_shock_t[-1] - post_shock_t[0])
+    elif dip_depth > 1e-4:
+        near_initial = np.where(post_shock_L[trough_idx:] >= pre_shock_level * 0.99)[0]
+        if len(near_initial) > 0:
+            recovery_from_shock = float(
+                post_shock_t[trough_idx + near_initial[0]] - post_shock_t[0]
+            )
+        else:
+            recovery_from_shock = float(post_shock_t[trough_idx] - post_shock_t[0]) + 1.0
+        recovery_from_shock = max(recovery_from_shock, 1.0)
+    else:
+        recovery_from_shock = 0.0
+
+    recovery = recovery_from_shock if recovery_from_shock is not None else float(effective_days)
+
     return {
         't': solution.t.tolist(),
         'L': solution.L.tolist(),
-        'min_labor_force': float(solution.min_labor_force) if solution.min_labor_force else 0.0,
-        'equilibrium': float(solution.equilibrium) if solution.equilibrium else 0.0,
-        'recovery_time': float(solution.recovery_time) if solution.recovery_time else None,
-        'resilience_score': float(solution.resilience_score) if solution.resilience_score else 0.0,
+        'min_labor_force': float(solution.min_labor_force or 0.0),
+        'equilibrium': float(solution.equilibrium or 0.0),
+        'recovery_time': round(recovery, 1),
+        'resilience_score': float(solution.resilience_score or 0.0),
     }
 
 
@@ -339,26 +383,47 @@ def api_simulation(
     df['exodus_prob'] = df.apply(
         lambda r_: calc_exodus_prob(r_['ej_percentile'], r_['coastal_jobs_pct'], severity), axis=1
     )
+
+    # Use severity-scaled thresholds so that low-severity scenarios still
+    # produce a realistic spread of Critical / High / Moderate / Low tracts
+    # instead of relying entirely on qcut (which can produce misleading bins
+    # at extreme severity values).
     try:
         df['vulnerability'] = pd.qcut(
-            df['exodus_prob'], q=4, labels=['Low','Moderate','High','Critical']
+            df['exodus_prob'], q=4, labels=['Low', 'Moderate', 'High', 'Critical']
         ).astype(str)
     except ValueError:
-        df['vulnerability'] = pd.cut(df['exodus_prob'], bins=[0,0.15,0.30,0.50,1.0],
-                                      labels=['Low','Moderate','High','Critical']).astype(str)
+        df['vulnerability'] = pd.cut(
+            df['exodus_prob'], bins=[0, 0.15, 0.30, 0.50, 1.0],
+            labels=['Low', 'Moderate', 'High', 'Critical']
+        ).astype(str)
+
     critical = int((df['vulnerability'] == 'Critical').sum())
-    emergency_fund = labor_flight * 50000
+
+    recovery_time = sol['recovery_time']
+
+    # Relief budget: accounts for total county workforce (~220k), severity,
+    # duration, and per-worker stabilization cost ($2,500 base).  This
+    # prevents trivially low values for mild shocks.
+    county_workforce = 220_000
+    affected_workers = county_workforce * (labor_flight / 100.0)
+    per_worker_cost = 2_500 + 1_500 * severity
+    duration_factor = min(duration / 30.0, 2.0)  # caps at 2× for long events
+    emergency_fund = max(
+        affected_workers * per_worker_cost * duration_factor,
+        severity * duration * 100_000,  # floor: at least $100k per sev-day
+    )
 
     return {
         'resilience_score': sol['resilience_score'],
         'labor_flight_pct': round(labor_flight, 1),
-        'recovery_time': sol['recovery_time'],
+        'recovery_time': round(recovery_time, 1),
         'ej_gap': round(ej_gap, 1),
         'min_employment': round(min_emp * 100, 1),
         'equilibrium': round(eq * 100, 1),
         'critical_tracts': critical,
         'emergency_fund': round(emergency_fund),
-        'status': 'RESILIENT' if sol['resilience_score'] >= 0.6 else ('AT RISK' if sol['resilience_score'] >= 0.35 else 'VULNERABLE'),
+        'status': 'RESILIENT' if sol['resilience_score'] >= 60 else ('AT RISK' if sol['resilience_score'] >= 35 else 'VULNERABLE'),
     }
 
 
@@ -911,6 +976,348 @@ def api_economic_impact():
 
         traceback.print_exc()
         return {"tracts": [], "distribution": {}, "stats": {}, "error": str(e)}
+
+
+# ── Tract Boundaries (polygon GeoJSON) ───────────────────────────────────────
+_boundary_cache = None
+_BOUNDARY_DISK_CACHE = Path("data/processed/tract_boundaries.geojson")
+
+
+def _load_boundary_disk_cache():
+    try:
+        if _BOUNDARY_DISK_CACHE.exists():
+            import time
+            if time.time() - _BOUNDARY_DISK_CACHE.stat().st_mtime < 86400:
+                with open(_BOUNDARY_DISK_CACHE) as f:
+                    return json.load(f)
+    except Exception:
+        pass
+    return None
+
+
+def _save_boundary_disk_cache(data):
+    try:
+        _BOUNDARY_DISK_CACHE.parent.mkdir(parents=True, exist_ok=True)
+        with open(_BOUNDARY_DISK_CACHE, 'w') as f:
+            json.dump(data, f)
+    except Exception:
+        pass
+
+
+def _build_synthetic_polygons(tracts_df):
+    """Create approximate hex-like polygons around centroids for synthetic/fallback data."""
+    features = []
+    for _, row in tracts_df.iterrows():
+        lat, lon = float(row.get('lat', 34.42)), float(row.get('lon', -119.70))
+        r_lat = 0.012
+        r_lon = 0.014
+        coords = [
+            [lon - r_lon, lat],
+            [lon - r_lon * 0.5, lat + r_lat],
+            [lon + r_lon * 0.5, lat + r_lat],
+            [lon + r_lon, lat],
+            [lon + r_lon * 0.5, lat - r_lat],
+            [lon - r_lon * 0.5, lat - r_lat],
+            [lon - r_lon, lat],
+        ]
+        features.append({
+            'type': 'Feature',
+            'geometry': {'type': 'Polygon', 'coordinates': [coords]},
+            'properties': {'GEOID': str(row['tract_id'])},
+        })
+    return {'type': 'FeatureCollection', 'features': features}
+
+
+def get_boundaries_geojson():
+    """Fetch or build polygon GeoJSON for all SB County census tracts."""
+    global _boundary_cache
+    if _boundary_cache is not None:
+        return _boundary_cache
+
+    cached = _load_boundary_disk_cache()
+    if cached and len(cached.get('features', [])) > 0:
+        _boundary_cache = cached
+        return _boundary_cache
+
+    tracts_df = get_tracts()
+
+    if REAL_DATA_AVAILABLE:
+        try:
+            census = CensusBureauClient()
+            state_fips = '06'
+            county_code = '083'
+            url = f"{census.TIGER_BASE}/TIGERweb/tigerWMS_Census2020/MapServer/8/query"
+            params = {
+                'where': f"STATE='{state_fips}' AND COUNTY='{county_code}'",
+                'outFields': 'GEOID,NAME,CENTLAT,CENTLON,AREALAND',
+                'returnGeometry': 'true',
+                'f': 'geojson',
+                'outSR': '4326',
+            }
+            import requests as req
+            resp = req.get(url, params=params, timeout=90)
+            resp.raise_for_status()
+            geojson = resp.json()
+            for feat in geojson.get('features', []):
+                props = feat.get('properties', {})
+                if 'GEOID' in props and isinstance(props['GEOID'], str):
+                    props['GEOID'] = props['GEOID'][:11]
+            if len(geojson.get('features', [])) > 0:
+                # Deduplicate: TIGERweb can return multiple polygons per tract
+                by_geoid = {}
+                for feat in geojson['features']:
+                    gid = feat.get('properties', {}).get('GEOID', '')
+                    geom = feat.get('geometry', {})
+                    if gid not in by_geoid:
+                        by_geoid[gid] = feat
+                    else:
+                        existing = by_geoid[gid]
+                        eg = existing.get('geometry', {})
+                        if eg.get('type') == 'Polygon' and geom.get('type') == 'Polygon':
+                            existing['geometry'] = {
+                                'type': 'MultiPolygon',
+                                'coordinates': [eg['coordinates'], geom['coordinates']],
+                            }
+                        elif eg.get('type') == 'MultiPolygon' and geom.get('type') == 'Polygon':
+                            eg['coordinates'].append(geom['coordinates'])
+                geojson['features'] = list(by_geoid.values())
+                _boundary_cache = geojson
+                _save_boundary_disk_cache(geojson)
+                return _boundary_cache
+        except Exception:
+            pass
+
+    _boundary_cache = _build_synthetic_polygons(tracts_df)
+    _save_boundary_disk_cache(_boundary_cache)
+    return _boundary_cache
+
+
+@app.get("/api/tract-boundaries")
+def api_tract_boundaries(severity: float = 0.5):
+    """
+    Full polygon GeoJSON with all tract metrics merged as feature properties.
+    The frontend uses this for choropleth fill + 3D extrusion.
+    """
+    geojson = get_boundaries_geojson()
+    tracts_df = get_tracts().copy()
+
+    tracts_df['exodus_prob'] = tracts_df.apply(
+        lambda r: calc_exodus_prob(r['ej_percentile'], r['coastal_jobs_pct'], severity), axis=1
+    )
+    try:
+        tracts_df['vulnerability'] = pd.qcut(
+            tracts_df['exodus_prob'], q=4, labels=['Low', 'Moderate', 'High', 'Critical']
+        ).astype(str)
+    except ValueError:
+        tracts_df['vulnerability'] = pd.cut(
+            tracts_df['exodus_prob'], bins=[0, 0.15, 0.30, 0.50, 1.0],
+            labels=['Low', 'Moderate', 'High', 'Critical']
+        ).astype(str)
+
+    tracts_df['city'] = tracts_df.apply(lambda r: _assign_city(r['lat'], r['lon']), axis=1)
+
+    tract_map = {}
+    for _, row in tracts_df.iterrows():
+        tid = str(row['tract_id'])
+        # Normalize to 11-digit GEOID (pad with leading zero if needed)
+        tid_norm = tid.zfill(11)
+        tract_map[tid_norm] = {
+            'name': row.get('name', f'Tract {tid[-4:]}'),
+            'city': row.get('city', ''),
+            'population': int(row.get('population', 0)),
+            'median_income': int(row.get('median_income', 0)),
+            'poverty_pct': float(row.get('poverty_pct', 0)),
+            'minority_pct': float(row.get('minority_pct', 0)),
+            'limited_english_pct': float(row.get('limited_english_pct', 0)),
+            'ej_percentile': int(row.get('ej_percentile', 0)),
+            'coastal_jobs_pct': int(row.get('coastal_jobs_pct', 0)),
+            'flood_zone': bool(row.get('flood_zone', False)),
+            'exodus_prob': round(float(row.get('exodus_prob', 0)), 4),
+            'vulnerability': row.get('vulnerability', 'Low'),
+            'lat': float(row.get('lat', 34.42)),
+            'lon': float(row.get('lon', -119.70)),
+        }
+
+    econ = api_economic_impact()
+    econ_map = {}
+    for t in econ.get('tracts', []):
+        # Normalize to 11-digit GEOID
+        econ_map[str(t['tract_id']).zfill(11)] = {
+            'vulnerability_score': t.get('vulnerability_score', 0),
+            'risk_level': t.get('risk_level', 'Low'),
+            'structural_exposure': t.get('structural_exposure', 0),
+        }
+
+    enriched_features = []
+    for feat in geojson.get('features', []):
+        geoid = feat.get('properties', {}).get('GEOID', '').zfill(11)
+        props = dict(feat.get('properties', {}))
+        tract_data = tract_map.get(geoid, {})
+        if not tract_data:
+            continue  # Skip TIGERweb tracts with no matching Census data
+        props.update(tract_data)
+        econ_data = econ_map.get(geoid, {})
+        props.update(econ_data)
+        props['tract_id'] = geoid
+        enriched_features.append({
+            'type': 'Feature',
+            'geometry': feat['geometry'],
+            'properties': props,
+        })
+
+    return {
+        'type': 'FeatureCollection',
+        'features': enriched_features,
+    }
+
+
+# ── City / Neighborhood Boundaries ──────────────────────────────────────────
+_city_boundary_cache = None
+
+
+@app.get("/api/city-boundaries")
+def api_city_boundaries():
+    """Convex hull polygons for each city/community grouping."""
+    global _city_boundary_cache
+    if _city_boundary_cache is not None:
+        return _city_boundary_cache
+
+    boundaries_geojson = api_tract_boundaries(severity=0.5)
+    from collections import defaultdict
+    city_points = defaultdict(list)
+    city_stats = defaultdict(lambda: {'population': 0, 'tracts': 0, 'exodus_sum': 0.0})
+
+    for feat in boundaries_geojson.get('features', []):
+        props = feat.get('properties', {})
+        city = props.get('city', 'Unincorporated SB County')
+        if not city:
+            city = 'Unincorporated SB County'
+        geom = feat.get('geometry', {})
+        coords = geom.get('coordinates', [])
+        if geom.get('type') == 'Polygon':
+            for ring in coords:
+                city_points[city].extend(ring)
+        elif geom.get('type') == 'MultiPolygon':
+            for poly in coords:
+                for ring in poly:
+                    city_points[city].extend(ring)
+        city_stats[city]['population'] += props.get('population', 0)
+        city_stats[city]['tracts'] += 1
+        city_stats[city]['exodus_sum'] += props.get('exodus_prob', 0)
+
+    def _convex_hull(points):
+        """Andrew's monotone chain convex hull."""
+        pts = sorted(set((round(p[0], 6), round(p[1], 6)) for p in points))
+        if len(pts) <= 2:
+            return [list(p) for p in pts] + [list(pts[0])] if pts else []
+
+        def _cross(o, a, b):
+            return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+
+        lower = []
+        for p in pts:
+            while len(lower) >= 2 and _cross(lower[-2], lower[-1], p) <= 0:
+                lower.pop()
+            lower.append(p)
+        upper = []
+        for p in reversed(pts):
+            while len(upper) >= 2 and _cross(upper[-2], upper[-1], p) <= 0:
+                upper.pop()
+            upper.append(p)
+        hull = lower[:-1] + upper[:-1]
+        hull.append(hull[0])
+        return [list(p) for p in hull]
+
+    features = []
+    for city, pts in city_points.items():
+        if len(pts) < 3:
+            continue
+        hull = _convex_hull(pts)
+        if len(hull) < 4:
+            continue
+        stats = city_stats[city]
+        avg_exodus = stats['exodus_sum'] / max(stats['tracts'], 1)
+        centroid_lon = sum(p[0] for p in hull[:-1]) / max(len(hull) - 1, 1)
+        centroid_lat = sum(p[1] for p in hull[:-1]) / max(len(hull) - 1, 1)
+        features.append({
+            'type': 'Feature',
+            'geometry': {'type': 'Polygon', 'coordinates': [hull]},
+            'properties': {
+                'city': city,
+                'population': stats['population'],
+                'tracts': stats['tracts'],
+                'avg_exodus_prob': round(avg_exodus, 4),
+                'centroid_lat': round(centroid_lat, 5),
+                'centroid_lon': round(centroid_lon, 5),
+            },
+        })
+
+    _city_boundary_cache = {'type': 'FeatureCollection', 'features': features}
+    return _city_boundary_cache
+
+
+# ── County Outline ───────────────────────────────────────────────────────────
+_county_outline_cache = None
+
+
+@app.get("/api/county-outline")
+def api_county_outline():
+    """Outer boundary of all tract polygons as a single concave-ish hull."""
+    global _county_outline_cache
+    if _county_outline_cache is not None:
+        return _county_outline_cache
+
+    boundaries_geojson = get_boundaries_geojson()
+    all_points = []
+    for feat in boundaries_geojson.get('features', []):
+        geom = feat.get('geometry', {})
+        coords = geom.get('coordinates', [])
+        if geom.get('type') == 'Polygon':
+            for ring in coords:
+                all_points.extend(ring)
+        elif geom.get('type') == 'MultiPolygon':
+            for poly in coords:
+                for ring in poly:
+                    all_points.extend(ring)
+
+    if len(all_points) < 3:
+        _county_outline_cache = {'type': 'FeatureCollection', 'features': []}
+        return _county_outline_cache
+
+    def _convex_hull(points):
+        pts = sorted(set((round(p[0], 6), round(p[1], 6)) for p in points))
+        if len(pts) <= 2:
+            return [list(p) for p in pts] + [list(pts[0])] if pts else []
+        def _cross(o, a, b):
+            return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+        lower = []
+        for p in pts:
+            while len(lower) >= 2 and _cross(lower[-2], lower[-1], p) <= 0:
+                lower.pop()
+            lower.append(p)
+        upper = []
+        for p in reversed(pts):
+            while len(upper) >= 2 and _cross(upper[-2], upper[-1], p) <= 0:
+                upper.pop()
+            upper.append(p)
+        hull = lower[:-1] + upper[:-1]
+        hull.append(hull[0])
+        return [list(p) for p in hull]
+
+    hull = _convex_hull(all_points)
+    if len(hull) < 4:
+        _county_outline_cache = {'type': 'FeatureCollection', 'features': []}
+        return _county_outline_cache
+
+    _county_outline_cache = {
+        'type': 'FeatureCollection',
+        'features': [{
+            'type': 'Feature',
+            'geometry': {'type': 'Polygon', 'coordinates': [hull]},
+            'properties': {'name': 'Santa Barbara County'},
+        }],
+    }
+    return _county_outline_cache
 
 
 # Serve React build if it exists

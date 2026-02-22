@@ -16,7 +16,7 @@ const RISK_STYLES = {
   Critical: { color: '#f43f5e', bg: 'rgba(244,63,94,0.12)' },
 };
 
-export default function EconomicImpactPanel({ impact, loading }) {
+export default function EconomicImpactPanel({ impact, loading, onSelectTract, selectedTract }) {
   if (loading) {
     return (
       <div className="glass-card" style={{ padding: 24, height: 520 }}>
@@ -162,7 +162,10 @@ export default function EconomicImpactPanel({ impact, loading }) {
         {topTracts.map((tract, index) => {
           const style = RISK_STYLES[tract.risk_level] || RISK_STYLES.Moderate;
           return (
-            <div key={tract.tract_id} className="impact-item-simple">
+            <div key={tract.tract_id} className="impact-item-simple"
+              style={{ cursor: 'pointer', border: selectedTract?.tract_id === tract.tract_id ? '1px solid rgba(34,211,238,0.5)' : undefined }}
+              onClick={() => onSelectTract?.({ ...tract, name: tract.tract_name })}
+            >
               <div className="impact-rank-simple" style={{ background: style.color }}>
                 {index + 1}
               </div>

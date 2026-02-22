@@ -753,13 +753,14 @@ def run_simulation(severity, duration, start_day, r, K, ej_percentile, n_days, v
     solution = ode.solve(L0=0.92, t_span=(0, n_days), n_points=min(n_days, 200))
     
     # Return serializable data for caching
+    recovery = float(solution.recovery_time) if solution.recovery_time is not None else float(n_days)
     return {
         't': solution.t.tolist(),
         'L': solution.L.tolist(),
-        'min_labor_force': float(solution.min_labor_force) if solution.min_labor_force else 0.0,
-        'equilibrium': float(solution.equilibrium) if solution.equilibrium else 0.0,
-        'recovery_time': float(solution.recovery_time) if solution.recovery_time else None,
-        'resilience_score': float(solution.resilience_score) if solution.resilience_score else 0.0,
+        'min_labor_force': float(solution.min_labor_force or 0.0),
+        'equilibrium': float(solution.equilibrium or 0.0),
+        'recovery_time': round(min(recovery, float(n_days)), 1),
+        'resilience_score': float(solution.resilience_score or 0.0),
     }, base_beta
 
 # ============================================================================
@@ -1148,7 +1149,7 @@ if app_mode == "Command Center":
     st.markdown('<p class="section-title" style="margin-top: 2rem;">Recovery Forecast</p>', unsafe_allow_html=True)
 
     # Timeline header
-    recovery_str = f"{solution['recovery_time']:.0f} days" if solution['recovery_time'] else "Extended"
+    recovery_str = f"{solution['recovery_time']:.0f} days"
     st.markdown(f"""
     <div class="timeline-header">
         <span class="timeline-title">Labor Force Trajectory</span>
@@ -1776,7 +1777,7 @@ elif app_mode == "SB 1000 Audit":
             coastal_pct = int(matching['coastal_jobs_pct'].mean())
 
         sol, beta = run_simulation(audit_severity, audit_duration, audit_start, 0.10, 0.95, ej_pct, 365)
-        rec = sol['recovery_time'] if sol['recovery_time'] else 365.0
+        rec = sol['recovery_time']
 
         ejc_rows.append({
             'Community': ej_name,
@@ -1795,7 +1796,7 @@ elif app_mode == "SB 1000 Audit":
     # County average: mean recovery across all tracts
     for ej_pct_val in range(10, 100, 10):
         s, _ = run_simulation(audit_severity, audit_duration, audit_start, 0.10, 0.95, ej_pct_val, 365)
-        county_avg_recovery += (s['recovery_time'] if s['recovery_time'] else 365.0)
+        county_avg_recovery += s['recovery_time']
     county_avg_recovery /= 9
 
     ejc_df = pd.DataFrame(ejc_rows)
@@ -1960,7 +1961,7 @@ elif app_mode == "Resident Portal":
 
                 severity_resident = 0.5
                 sol_r, beta_r = run_simulation(severity_resident, 21, 30, 0.10, 0.95, int(t['ej_percentile']), 365)
-                rec_time_r = sol_r['recovery_time'] if sol_r['recovery_time'] else 365.0
+                rec_time_r = sol_r['recovery_time']
                 exodus_r = calc_exodus_prob(t['ej_percentile'], t['coastal_jobs_pct'], severity_resident)
 
                 L_vals = sol_r['L']

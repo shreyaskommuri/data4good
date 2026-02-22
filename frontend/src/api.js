@@ -58,6 +58,18 @@ export async function getWorkforceProjected(severity = 0.5, duration = 21) {
   return fetchJSON(`/api/workforce/projected?severity=${severity}&duration=${duration}`);
 }
 
+export async function getTractBoundaries(severity = 0.5) {
+  return fetchJSON(`/api/tract-boundaries?severity=${severity}`);
+}
+
+export async function getCityBoundaries() {
+  return fetchJSON('/api/city-boundaries');
+}
+
+export async function getCountyOutline() {
+  return fetchJSON('/api/county-outline');
+}
+
 export async function sendChat(message, tract, params, simData, allTracts) {
   const res = await fetch(`${API}/api/chat`, {
     method: 'POST',

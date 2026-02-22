@@ -206,44 +206,78 @@ export default function RecoveryChart({ comparison, loading }) {
         </LineChart>
       </ResponsiveContainer>
 
-      {/* Recovery time comparison */}
+      {/* Recovery time comparison — inline strip */}
       <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(4, 1fr)',
-        gap: 12,
-        marginTop: 16,
+        display: 'flex',
+        alignItems: 'center',
+        marginTop: 18,
+        padding: '10px 4px',
+        borderRadius: 12,
+        background: 'rgba(255,255,255,0.02)',
       }}>
-        {profileNames.map(name => {
+        {profileNames.map((name, i) => {
           const p = profiles[name];
           const color = PROFILE_COLORS[name];
-          const recoveryDisplay = p.recovery_time 
-            ? `${Math.round(p.recovery_time)}d` 
-            : `> ${Math.round(simDays)}d`;
+          const days = p.recovery_time != null
+            ? Math.round(p.recovery_time)
+            : Math.round(simDays);
+          const isLast = i === profileNames.length - 1;
           return (
-            <div key={name} style={{
-              padding: '12px',
-              borderRadius: 10,
-              background: `${color}0a`,
-              border: `1px solid ${color}20`,
-              textAlign: 'center',
-            }}>
+            <React.Fragment key={name}>
               <div style={{
-                fontSize: '0.7rem', color: '#8b8ca0',
-                textTransform: 'uppercase', letterSpacing: '0.05em',
-                marginBottom: 4,
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                padding: '0 16px',
               }}>
-                {name}
+                <div style={{
+                  width: 3, height: 28, borderRadius: 3,
+                  background: color,
+                  opacity: 0.8,
+                  flexShrink: 0,
+                }} />
+                <div style={{ minWidth: 0 }}>
+                  <div style={{
+                    fontSize: '0.65rem',
+                    color: '#6b6c80',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.06em',
+                    lineHeight: 1,
+                    marginBottom: 3,
+                    whiteSpace: 'nowrap',
+                  }}>
+                    {name}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+                    <span style={{
+                      fontSize: '1.25rem',
+                      fontWeight: 700,
+                      fontFamily: 'var(--font-mono)',
+                      color,
+                      lineHeight: 1,
+                    }}>
+                      {days}
+                    </span>
+                    <span style={{
+                      fontSize: '0.7rem',
+                      fontWeight: 500,
+                      color: '#4a4b5e',
+                    }}>
+                      days
+                    </span>
+                  </div>
+                </div>
               </div>
-              <div style={{
-                fontSize: '1.2rem', fontWeight: 700,
-                fontFamily: 'var(--font-mono)', color,
-              }}>
-                {recoveryDisplay}
-              </div>
-              <div style={{ fontSize: '0.65rem', color: '#5a5b70', marginTop: 2 }}>
-                recovery
-              </div>
-            </div>
+              {!isLast && (
+                <div style={{
+                  width: 1,
+                  height: 24,
+                  background: 'rgba(255,255,255,0.06)',
+                  flexShrink: 0,
+                }} />
+              )}
+            </React.Fragment>
           );
         })}
       </div>

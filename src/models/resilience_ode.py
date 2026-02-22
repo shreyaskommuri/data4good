@@ -190,41 +190,71 @@ class ODESolution:
     resilience_score: Optional[float] = None
     
     def compute_metrics(self, threshold: float = 0.95) -> None:
-        """Compute recovery and resilience metrics."""
-        # Minimum labor force (worst point)
+        """Compute recovery and resilience metrics.
+
+        Recovery time: days from the shock trough until employment returns to
+        within ``threshold`` of the pre-shock level.  Falls back to measuring
+        against the post-shock equilibrium when the initial level is
+        unattainable.  A minimum of 1 day is returned whenever a shock caused
+        any measurable dip, so the UI never shows a confusing ``0d``.
+
+        Resilience score: 0-100 composite combining recovery speed, shock
+        depth, and long-run equilibrium ratio.
+        """
         self.min_labor_force = float(np.min(self.L))
-        
-        # Equilibrium (final value)
         self.equilibrium = float(self.L[-1])
-        
-        # Recovery time (time to reach threshold of initial value)
         initial = self.L[0]
-        target = initial * threshold
-        above_target = np.where(self.L >= target)[0]
-        
-        if len(above_target) > 0:
-            first_recovery = above_target[0]
-            # Find first time it stays above target
-            for i in range(first_recovery, len(self.L)):
-                if np.all(self.L[i:] >= target * 0.99):
-                    self.recovery_time = float(self.t[i] - self.t[0])
-                    break
-        
-        # Resilience score (combination of metrics)
-        # Higher = more resilient
-        if self.recovery_time is not None and self.recovery_time > 0:
-            recovery_factor = 1.0 / (1.0 + self.recovery_time / 30)  # 30 day baseline
+        sim_span = float(self.t[-1] - self.t[0])
+
+        # Use the higher of (initial, equilibrium) × threshold as recovery
+        # target so that even mild shocks with a small dip report a nonzero
+        # recovery time.
+        recovery_target = max(initial, self.equilibrium) * threshold
+
+        # If the shock's trough is already above the target the series
+        # essentially never "broke" — but we still want to report a small
+        # recovery time proportional to the dip depth.
+        trough_idx = int(np.argmin(self.L))
+        dip_depth = initial - self.min_labor_force
+
+        below = np.where(self.L < recovery_target)[0]
+        if len(below) > 0:
+            last_below = below[-1]
+            if last_below < len(self.L) - 1:
+                self.recovery_time = float(self.t[last_below + 1] - self.t[0])
+            else:
+                self.recovery_time = sim_span
+        elif dip_depth > 1e-4:
+            # Shock caused a measurable dip but never crossed the 95% line.
+            # Estimate recovery as the time from trough back to 99% of initial.
+            near_initial = np.where(self.L[trough_idx:] >= initial * 0.99)[0]
+            if len(near_initial) > 0:
+                self.recovery_time = float(
+                    self.t[trough_idx + near_initial[0]] - self.t[0]
+                )
+            else:
+                self.recovery_time = float(self.t[trough_idx] - self.t[0]) + 1.0
+            self.recovery_time = max(self.recovery_time, 1.0)
         else:
-            recovery_factor = 1.0
-            
-        depth_factor = self.min_labor_force / initial if initial > 0 else 0
-        equilibrium_factor = self.equilibrium / initial if initial > 0 else 0
-        
-        self.resilience_score = (
-            0.3 * recovery_factor +
-            0.3 * depth_factor +
-            0.4 * equilibrium_factor
+            self.recovery_time = 0.0
+
+        # Clamp to simulation span
+        self.recovery_time = min(self.recovery_time, sim_span)
+
+        # --- Resilience score (0-100) ---
+        # Recovery speed: faster is better (baseline 90 days = midpoint)
+        recovery_factor = 1.0 / (1.0 + self.recovery_time / 90.0)
+        # Shock depth: how little employment dropped
+        depth_factor = (self.min_labor_force / initial) if initial > 0 else 0
+        # Equilibrium ratio: how much capacity was retained
+        equilibrium_factor = (self.equilibrium / initial) if initial > 0 else 0
+
+        raw = (
+            0.3 * recovery_factor
+            + 0.3 * depth_factor
+            + 0.4 * equilibrium_factor
         )
+        self.resilience_score = float(np.clip(raw * 100.0, 0.0, 100.0))
 
 
 class ResilienceODE:
@@ -313,7 +343,7 @@ class ResilienceODE:
         L0: float,
         t_span: Tuple[float, float],
         n_points: int = 100,
-        method: str = "odeint",
+        method: str = "ivp",
     ) -> ODESolution:
         """
         Solve the resilience ODE.
@@ -334,13 +364,15 @@ class ResilienceODE:
             L = odeint(self._ode_func, L0, t)
             L = L.flatten()
         else:
-            # scipy.integrate.solve_ivp
+            # scipy.integrate.solve_ivp — handles discontinuous shocks reliably
+            min_shock_dur = min((s.duration for s in self.shocks), default=10.0)
             sol = solve_ivp(
                 self._ode_func_ivp,
                 t_span,
                 [L0],
                 t_eval=t,
                 method="RK45",
+                max_step=max(0.5, min_shock_dur / 4.0),
             )
             L = sol.y.flatten()
             

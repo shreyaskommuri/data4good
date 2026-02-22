@@ -48,33 +48,85 @@ export default function NoaaPanel({ noaa, loading }) {
         </div>
       ) : (
         <>
-          {/* Stats */}
-          {noaa.stats && noaa.data?.length > 0 && (
-            <div style={{
-              display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10,
-              marginBottom: 16,
-            }}>
-              {[
-                { label: 'Current', value: `${noaa.data[noaa.data.length - 1].water_level.toFixed(1)} ft`, color: '#22d3ee' },
-                { label: 'Peak', value: `${noaa.stats.max?.toFixed(1)} ft`, color: '#f43f5e' },
-                { label: 'Low', value: `${noaa.stats.min?.toFixed(1)} ft`, color: '#34d399' },
-                { label: 'High Events', value: noaa.stats.high_events, color: '#fbbf24' },
-              ].map((s, i) => (
-                <div key={i} style={{
-                  textAlign: 'center', padding: 8, borderRadius: 8,
-                  background: `${s.color}08`, border: `1px solid ${s.color}15`,
-                }}>
-                  <div style={{
-                    fontSize: '1.1rem', fontWeight: 700,
-                    fontFamily: 'var(--font-mono)', color: s.color,
-                  }}>
-                    {s.value}
-                  </div>
-                  <div style={{ fontSize: '0.65rem', color: '#5a5b70' }}>{s.label}</div>
-                </div>
-              ))}
-            </div>
-          )}
+          {/* Stats — inline strip */}
+          {noaa.stats && noaa.data?.length > 0 && (() => {
+            const stats = [
+              { label: 'Current', value: noaa.data[noaa.data.length - 1].water_level.toFixed(1), unit: 'ft', color: '#22d3ee' },
+              { label: 'Peak', value: noaa.stats.max?.toFixed(1), unit: 'ft', color: '#f43f5e' },
+              { label: 'Low', value: noaa.stats.min?.toFixed(1), unit: 'ft', color: '#34d399' },
+              { label: 'High Events', value: noaa.stats.high_events, unit: '', color: '#fbbf24' },
+            ];
+            return (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                marginBottom: 16,
+                padding: '10px 4px',
+                borderRadius: 12,
+                background: 'rgba(255,255,255,0.02)',
+              }}>
+                {stats.map((s, i) => (
+                  <React.Fragment key={i}>
+                    <div style={{
+                      flex: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                      padding: '0 16px',
+                    }}>
+                      <div style={{
+                        width: 3, height: 28, borderRadius: 3,
+                        background: s.color,
+                        opacity: 0.8,
+                        flexShrink: 0,
+                      }} />
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{
+                          fontSize: '0.65rem',
+                          color: '#6b6c80',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.06em',
+                          lineHeight: 1,
+                          marginBottom: 3,
+                          whiteSpace: 'nowrap',
+                        }}>
+                          {s.label}
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+                          <span style={{
+                            fontSize: '1.25rem',
+                            fontWeight: 700,
+                            fontFamily: 'var(--font-mono)',
+                            color: s.color,
+                            lineHeight: 1,
+                          }}>
+                            {s.value}
+                          </span>
+                          {s.unit && (
+                            <span style={{
+                              fontSize: '0.7rem',
+                              fontWeight: 500,
+                              color: '#4a4b5e',
+                            }}>
+                              {s.unit}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    {i < stats.length - 1 && (
+                      <div style={{
+                        width: 1,
+                        height: 24,
+                        background: 'rgba(255,255,255,0.06)',
+                        flexShrink: 0,
+                      }} />
+                    )}
+                  </React.Fragment>
+                ))}
+              </div>
+            );
+          })()}
 
           {/* Chart */}
           <ResponsiveContainer width="100%" height={200}>

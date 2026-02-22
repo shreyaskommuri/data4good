@@ -179,7 +179,7 @@ export async function generatePDFReport(params, simData, selectedTract) {
   const metrics_display = simData ? [
     { label: 'Recovery Time', value: `${Math.round(simData.recovery_time || 0)} days`, color: colors.cyan },
     { label: 'Min Employment', value: `${((simData.min_labor_force || 0) * 100).toFixed(1)}%`, color: colors.rose },
-    { label: 'Resilience Score', value: `${(simData.resilience_score || 0).toFixed(2)}/1.0`, color: colors.emerald },
+    { label: 'Resilience Score', value: `${Math.round(simData.resilience_score || 0)}/100`, color: colors.emerald },
     { label: 'Exodus Risk', value: `${(selectedTract.exodus_prob * 100).toFixed(1)}%`, color: colors.purple },
   ] : [];
 
