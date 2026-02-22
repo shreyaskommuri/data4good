@@ -53,13 +53,13 @@ export default function NoaaPanel({ noaa, loading }) {
       ) : (
         <>
           {/* Stats */}
-          {noaa.stats && (
+          {noaa.stats && noaa.data?.length > 0 && (
             <div style={{
               display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10,
               marginBottom: 16,
             }}>
               {[
-                { label: 'Current', value: `${noaa.stats.mean?.toFixed(1)} ft`, color: '#22d3ee' },
+                { label: 'Current', value: `${noaa.data[noaa.data.length - 1].water_level.toFixed(1)} ft`, color: '#22d3ee' },
                 { label: 'Peak', value: `${noaa.stats.max?.toFixed(1)} ft`, color: '#f43f5e' },
                 { label: 'Low', value: `${noaa.stats.min?.toFixed(1)} ft`, color: '#34d399' },
                 { label: 'High Events', value: noaa.stats.high_events, color: '#fbbf24' },
@@ -83,20 +83,16 @@ export default function NoaaPanel({ noaa, loading }) {
           {/* Chart */}
           <ResponsiveContainer width="100%" height={200}>
             <LineChart
-              data={noaa.data.map(d => ({
-                ...d,
-                time: d.date_time || d.t,
-                level: d.water_level ?? d.v,
-              }))}
+              data={noaa.data}
               margin={{ top: 5, right: 10, bottom: 5, left: 0 }}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
               <XAxis
-                dataKey="time"
+                dataKey="timestamp"
                 stroke="rgba(255,255,255,0.1)"
                 tick={{ fill: '#5a5b70', fontSize: 10 }}
                 tickFormatter={v => {
-                  try { return new Date(v).toLocaleDateString('en-US', { weekday: 'short' }); }
+                  try { return new Date(v).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); }
                   catch { return ''; }
                 }}
               />
@@ -113,10 +109,14 @@ export default function NoaaPanel({ noaa, loading }) {
                   fontSize: '0.8rem',
                 }}
                 labelStyle={{ color: '#e8e8f0' }}
+                labelFormatter={v => new Date(v).toLocaleString('en-US', { 
+                  month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
+                })}
+                formatter={(value) => [`${value.toFixed(2)} ft`, 'Water Level']}
               />
               <Line
                 type="monotone"
-                dataKey="level"
+                dataKey="water_level"
                 stroke="#22d3ee"
                 strokeWidth={1.5}
                 dot={false}

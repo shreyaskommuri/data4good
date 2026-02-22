@@ -60,6 +60,9 @@ export default function RecoveryChart({ comparison, loading }) {
 
   const { profiles, shock, baseline } = comparison;
 
+  // Get max simulation days from the data
+  const simDays = profiles[Object.keys(profiles)[0]]?.t[profiles[Object.keys(profiles)[0]].t.length - 1] || 365;
+
   // Merge all profiles into a single data array
   const profileNames = Object.keys(profiles);
   const refProfile = profiles[profileNames[0]];
@@ -219,6 +222,9 @@ export default function RecoveryChart({ comparison, loading }) {
         {profileNames.map(name => {
           const p = profiles[name];
           const color = PROFILE_COLORS[name];
+          const recoveryDisplay = p.recovery_time 
+            ? `${Math.round(p.recovery_time)}d` 
+            : `> ${Math.round(simDays)}d`;
           return (
             <div key={name} style={{
               padding: '12px',
@@ -238,7 +244,7 @@ export default function RecoveryChart({ comparison, loading }) {
                 fontSize: '1.2rem', fontWeight: 700,
                 fontFamily: 'var(--font-mono)', color,
               }}>
-                {p.recovery_time ? `${Math.round(p.recovery_time)}d` : '—'}
+                {recoveryDisplay}
               </div>
               <div style={{ fontSize: '0.65rem', color: '#5a5b70', marginTop: 2 }}>
                 recovery
