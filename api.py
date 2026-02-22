@@ -62,6 +62,10 @@ def _prewarm_caches():
         get_tracts()          # Census + FEMA + BLS — the slowest call
     except Exception:
         pass
+    try:
+        api_economic_impact() # 1308 ODE simulations — warm while user loads UI
+    except Exception:
+        pass
 
 app = FastAPI(title="Coastal Resilience API")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -89,6 +93,8 @@ def _load_tract_disk_cache():
             if age < 86400:  # 24 h
                 df = pd.read_json(_TRACT_DISK_CACHE)
                 if not df.empty:
+                    # Ensure string columns that JSON may parse as int are restored
+                    df['tract_id'] = df['tract_id'].astype(str)
                     return df
     except Exception:
         pass
@@ -715,6 +721,30 @@ INSTRUCTIONS:
 
 # Economic Impact Vulnerability Scoring (Scenario Ensemble Model)
 _economic_impact_cache = None
+_ECON_DISK_CACHE = Path("data/processed/economic_impact_cache.json")
+
+
+def _load_econ_disk_cache():
+    try:
+        if _ECON_DISK_CACHE.exists():
+            import time
+            if time.time() - _ECON_DISK_CACHE.stat().st_mtime < 86400:
+                import json
+                with open(_ECON_DISK_CACHE) as f:
+                    return json.load(f)
+    except Exception:
+        pass
+    return None
+
+
+def _save_econ_disk_cache(data):
+    try:
+        _ECON_DISK_CACHE.parent.mkdir(parents=True, exist_ok=True)
+        import json
+        with open(_ECON_DISK_CACHE, 'w') as f:
+            json.dump(data, f)
+    except Exception:
+        pass
 
 
 def _compute_structural_exposure(tract_row: pd.Series) -> float:
@@ -820,15 +850,22 @@ def api_economic_impact():
     if _economic_impact_cache is not None:
         return _economic_impact_cache
 
+    # Try disk cache first
+    cached = _load_econ_disk_cache()
+    if cached:
+        _economic_impact_cache = cached
+        return _economic_impact_cache
+
     try:
         tracts_df = get_tracts()
 
-        tracts_with_scores = []
-        for _, tract_data in tracts_df.iterrows():
-            tract_id = tract_data["tract_id"]
-            model_out = _simulate_recovery_risk_for_tract(tract_data)
+        # Run all 109 tract simulations in parallel (12 ODE scenarios each)
+        from concurrent.futures import ThreadPoolExecutor
 
-            tracts_with_scores.append({
+        def _score_tract(tract_data):
+            tract_id = str(tract_data["tract_id"])
+            model_out = _simulate_recovery_risk_for_tract(tract_data)
+            return {
                 "tract_id": tract_id,
                 "tract_name": tract_data.get("name", f"Tract {tract_id[-4:]}"),
                 "lat": float(tract_data.get("lat", 34.42)),
@@ -841,7 +878,11 @@ def api_economic_impact():
                 "median_income": int(tract_data.get("median_income", 75000)),
                 "poverty_rate": float(tract_data.get("poverty_pct", 10)),
                 "flood_zone": bool(tract_data.get("flood_zone", False)),
-            })
+            }
+
+        rows = [row for _, row in tracts_df.iterrows()]
+        with ThreadPoolExecutor(max_workers=12) as pool:
+            tracts_with_scores = list(pool.map(_score_tract, rows))
 
         tracts_with_scores.sort(key=lambda x: x["vulnerability_score"], reverse=True)
 
@@ -863,6 +904,7 @@ def api_economic_impact():
             },
         }
 
+        _save_econ_disk_cache(_economic_impact_cache)  # persist for fast restarts
         return _economic_impact_cache
     except Exception as e:
         import traceback
