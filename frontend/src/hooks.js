@@ -1,21 +1,32 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
-export function useApi(fetcher, deps = []) {
+/**
+ * useApi — fetch data reactively.
+ * @param {Function} fetcher  Async function returning the data.
+ * @param {Array}    deps     Re-fetch when these values change.
+ * @param {Object}   options
+ * @param {boolean}  options.enabled  When false, skips the fetch (default: true).
+ *                                    Useful for deferring secondary calls until
+ *                                    critical data has landed.
+ */
+export function useApi(fetcher, deps = [], { enabled = true } = {}) {
   const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(enabled);
   const [error, setError] = useState(null);
   const hasInitialData = useRef(false);
 
   const refetch = useCallback(() => {
+    if (!enabled) return;
+
     // Only show loading state on initial load (when we don't have data yet)
     // For subsequent updates, update data in background without showing loading
     const isInitialLoad = !hasInitialData.current;
-    
+
     if (isInitialLoad) {
       setLoading(true);
     }
     setError(null);
-    
+
     fetcher()
       .then((newData) => {
         setData(newData);
@@ -27,7 +38,8 @@ export function useApi(fetcher, deps = []) {
           setLoading(false);
         }
       });
-  }, deps);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [...deps, enabled]);
 
   useEffect(() => { refetch(); }, [refetch]);
 

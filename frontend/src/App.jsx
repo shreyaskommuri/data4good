@@ -1,20 +1,43 @@
-import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useRef, useMemo, lazy, Suspense } from 'react'
 import { useApi } from './hooks';
 import * as api from './api';
 
+// Always-eager: small, above-the-fold components
 import KPIHeader from './components/KPIHeader';
 import ControlPanel from './components/ControlPanel';
-import TractMap from './components/TractMap';
-import RecoveryChart from './components/RecoveryChart';
-import MarkovPanel from './components/MarkovPanel';
-import WorkforcePanel from './components/WorkforcePanel';
-import NoaaPanel from './components/NoaaPanel';
-import PolicySection from './components/PolicySection';
-import PDFExportButton from './components/PDFExportButton';
-import EconomicImpactPanel from './components/EconomicImpactPanel';
-import ChatPanel from './components/ChatPanel';
 
-import { Shield, Database, Clock } from 'lucide-react';
+// Lazy-loaded: heavy library consumers — downloaded only when rendered
+const TractMap          = lazy(() => import('./components/TractMap'));
+const RecoveryChart     = lazy(() => import('./components/RecoveryChart'));
+const MarkovPanel       = lazy(() => import('./components/MarkovPanel'));
+const WorkforcePanel    = lazy(() => import('./components/WorkforcePanel'));
+const NoaaPanel         = lazy(() => import('./components/NoaaPanel'));
+const EconomicImpactPanel = lazy(() => import('./components/EconomicImpactPanel'));
+const PolicySection     = lazy(() => import('./components/PolicySection'));
+const PDFExportButton   = lazy(() => import('./components/PDFExportButton'));
+const ChatPanel         = lazy(() => import('./components/ChatPanel'));
+
+import { Shield, Database } from 'lucide-react';
+
+// Lightweight skeleton shown while a lazy chunk is downloading
+function PanelSkeleton({ height = 240 }) {
+  return (
+    <div style={{
+      height,
+      borderRadius: 12,
+      background: 'rgba(255,255,255,0.03)',
+      border: '1px solid rgba(255,255,255,0.06)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      color: 'var(--text-muted)',
+      fontSize: '0.75rem',
+      animation: 'pulse 1.5s ease-in-out infinite',
+    }}>
+      Loading…
+    </div>
+  );
+}
 
 export default function App() {
   // Local state for immediate slider feedback (no API calls)
@@ -50,33 +73,37 @@ export default function App() {
     };
   }, [localParams]);
 
-  // Fetch data that depends on params (only updates after debounce)
+  // ── Critical path: load tracts + simulation first ──────────────────────────
   const sim = useApi(
     () => api.getSimulation(params),
-    [params.severity, params.duration, params.start_day, params.r, params.K]
-  );
-  const comparison = useApi(
-    () => api.getComparison(params),
     [params.severity, params.duration, params.start_day, params.r, params.K]
   );
   const tracts = useApi(
     () => api.getTracts(params.severity),
     [params.severity]
   );
+
+  // Secondary data fires only after both critical datasets have landed.
+  // This keeps the browser focused on the critical path first.
+  const primaryReady = !!(sim.data && tracts.data);
+
+  const comparison = useApi(
+    () => api.getComparison(params),
+    [params.severity, params.duration, params.start_day, params.r, params.K],
+    { enabled: primaryReady }
+  );
   const markov = useApi(
     () => api.getMarkov(params.severity, params.duration),
-    [params.severity, params.duration]
+    [params.severity, params.duration],
+    { enabled: primaryReady }
   );
-
-  // Fetch static data once
-  const noaa = useApi(() => api.getNoaa(), []);
-  const workforce = useApi(() => api.getWorkforce(), []);
-  const economicImpact = useApi(() => api.getEconomicImpact(), []);
-
-  // Projected workforce shifts based on severity
+  const noaa = useApi(() => api.getNoaa(), [], { enabled: primaryReady });
+  const workforce = useApi(() => api.getWorkforce(), [], { enabled: primaryReady });
+  const economicImpact = useApi(() => api.getEconomicImpact(), [], { enabled: primaryReady });
   const workforceProjected = useApi(
     () => api.getWorkforceProjected(params.severity, params.duration),
-    [params.severity, params.duration]
+    [params.severity, params.duration],
+    { enabled: primaryReady }
   );
 
   // Check if params are being debounced (localParams !== params)
@@ -186,17 +213,21 @@ export default function App() {
           marginBottom: 24,
         }}>
           <ControlPanel params={localParams} onChange={setLocalParams} />
-          <TractMap
-            tracts={tracts.data}
-            loading={tracts.loading}
-            onSelectTract={setSelectedTract}
-            economicImpact={economicImpact.data}
-          />
+          <Suspense fallback={<PanelSkeleton height={480} />}>
+            <TractMap
+              tracts={tracts.data}
+              loading={tracts.loading}
+              onSelectTract={setSelectedTract}
+              economicImpact={economicImpact.data}
+            />
+          </Suspense>
         </div>
 
         {/* Recovery forecast */}
         <div style={{ marginBottom: 24 }}>
-          <RecoveryChart comparison={comparison.data} loading={comparison.loading} />
+          <Suspense fallback={<PanelSkeleton height={260} />}>
+            <RecoveryChart comparison={comparison.data} loading={comparison.loading} />
+          </Suspense>
         </div>
 
         {/* Markov + NOAA row */}
@@ -206,27 +237,37 @@ export default function App() {
           gap: 24,
           marginBottom: 24,
         }}>
-          <MarkovPanel markov={markov.data} loading={markov.loading} />
-          <NoaaPanel noaa={noaa.data} loading={noaa.loading} />
+          <Suspense fallback={<PanelSkeleton height={300} />}>
+            <MarkovPanel markov={markov.data} loading={markov.loading} />
+          </Suspense>
+          <Suspense fallback={<PanelSkeleton height={300} />}>
+            <NoaaPanel noaa={noaa.data} loading={noaa.loading} />
+          </Suspense>
         </div>
 
         {/* Workforce Intelligence (full width) */}
         <div style={{ marginBottom: 24 }}>
-          <WorkforcePanel
-            workforce={workforce.data}
-            loading={workforce.loading}
-            projected={workforceProjected.data}
-            severity={params.severity}
-          />
+          <Suspense fallback={<PanelSkeleton height={340} />}>
+            <WorkforcePanel
+              workforce={workforce.data}
+              loading={workforce.loading}
+              projected={workforceProjected.data}
+              severity={params.severity}
+            />
+          </Suspense>
         </div>
 
         {/* Economic Impact Scoring (full width) */}
         <div style={{ marginBottom: 24 }}>
-          <EconomicImpactPanel impact={economicImpact.data} loading={economicImpact.loading} />
+          <Suspense fallback={<PanelSkeleton height={300} />}>
+            <EconomicImpactPanel impact={economicImpact.data} loading={economicImpact.loading} />
+          </Suspense>
         </div>
 
         {/* Policy */}
-        <PolicySection sim={sim.data} />
+        <Suspense fallback={<PanelSkeleton height={200} />}>
+          <PolicySection sim={sim.data} />
+        </Suspense>
 
         {/* PDF Export Button */}
         <div style={{
@@ -238,11 +279,15 @@ export default function App() {
           display: 'flex',
           justifyContent: 'center',
         }}>
-          <PDFExportButton params={params} simData={sim.data} tracts={tracts.data} selectedTract={selectedTract} onSelectTract={setSelectedTract} />
+          <Suspense fallback={null}>
+            <PDFExportButton params={params} simData={sim.data} tracts={tracts.data} selectedTract={selectedTract} onSelectTract={setSelectedTract} />
+          </Suspense>
         </div>
 
         {/* AI Chatbot (floating) */}
-        <ChatPanel params={params} simData={sim.data} selectedTract={selectedTract} allTracts={tracts.data} />
+        <Suspense fallback={null}>
+          <ChatPanel params={params} simData={sim.data} selectedTract={selectedTract} allTracts={tracts.data} />
+        </Suspense>
 
         {/* Footer */}
         <footer style={{

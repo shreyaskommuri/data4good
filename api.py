@@ -52,8 +52,24 @@ except ImportError:
 
 LIVE_DATA_DIR = Path("drive-download-20260221T181111Z-3-001")
 
+# ── App + startup cache pre-warming ──────────────────────────────────────────
+import threading
+
+def _prewarm_caches():
+    """Run in a background thread at startup to populate data caches before the
+    first user request arrives, eliminating the per-request cold-start delay."""
+    try:
+        get_tracts()          # Census + FEMA + BLS — the slowest call
+    except Exception:
+        pass
+
 app = FastAPI(title="Coastal Resilience API")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+
+@app.on_event("startup")
+async def startup_event():
+    # Kick off cache pre-warming without blocking the server from accepting requests
+    threading.Thread(target=_prewarm_caches, daemon=True).start()
 
 # ── Caches ───────────────────────────────────────────────────────────────────
 _tract_cache = None
