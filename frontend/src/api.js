@@ -46,6 +46,10 @@ export async function getHousing() {
   return fetchJSON('/api/housing');
 }
 
+export async function getEconomicImpact() {
+  return fetchJSON('/api/economic-impact');
+}
+
 export async function getMarkov(severity = 0.5, duration = 21) {
   return fetchJSON(`/api/markov?severity=${severity}&duration=${duration}`);
 }

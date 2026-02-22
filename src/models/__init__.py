@@ -11,6 +11,10 @@ Phase 3: Mathematical Engine
 - Resilience ODE solver with EJ friction
 - Coupled Markov-ODE simulation
 
+Phase 4: ML Prediction Models
+- Displacement risk prediction (XGBoost binary classifier)
+- Economic impact scoring (XGBoost regression)
+
 Submodules:
 - job_classifier: Rule-based and LLM-based job classifiers
 - rapidfire: Hyper-parallelization framework for model testing
@@ -18,6 +22,11 @@ Submodules:
 - evaluation: Metrics calculation and comparison tools
 - markov_chain: Markov transition matrix for labor categories
 - resilience_ode: Differential equation solver for labor dynamics
+- displacement_features: Feature engineering for displacement risk
+- displacement_model: XGBoost model for displacement prediction
+- displacement_predictor: Production inference for displacement risk
+- economic_impact_features: Feature engineering for tract vulnerability
+- economic_impact_model: XGBoost regression for vulnerability scoring
 """
 
 from .job_classifier import (
@@ -83,6 +92,35 @@ from .resilience_ode import (
     create_ej_tract
 )
 
+# Phase 4: ML Prediction Models
+from .displacement_features import (
+    DisplacementFeatures,
+    DisplacementFeatureExtractor,
+)
+
+from .displacement_model import (
+    DisplacementRiskModel,
+    train_displacement_model,
+    cross_validate_model,
+)
+
+from .displacement_predictor import (
+    DisplacementPredictor,
+    get_predictor,
+    predict_displacement_risk,
+)
+
+from .economic_impact_features import (
+    EconomicImpactFeatures,
+    EconomicImpactFeatureExtractor,
+)
+
+from .economic_impact_model import (
+    EconomicImpactModel,
+    train_economic_impact_model,
+    cross_validate_economic_model,
+)
+
 __all__ = [
     # Classification
     "ClimateCategory",
@@ -132,6 +170,22 @@ __all__ = [
     
     # Phase 3: Resilience ODE
     "EJScreenData",
+    
+    # Phase 4: ML Models
+    "DisplacementFeatures",
+    "DisplacementFeatureExtractor",
+    "DisplacementRiskModel",
+    "train_displacement_model",
+    "cross_validate_model",
+    "DisplacementPredictor",
+    "get_predictor",
+    "predict_displacement_risk",
+    "EconomicImpactFeatures",
+    "EconomicImpactFeatureExtractor",
+    "EconomicImpactModel",
+    "train_economic_impact_model",
+    "cross_validate_economic_model",
+
     "ODEParameters",
     "ClimateShock",
     "ODESolution",

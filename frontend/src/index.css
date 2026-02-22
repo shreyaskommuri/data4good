@@ -4,6 +4,7 @@
    ═══════════════════════════════════════════════════════════════════ */
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
 
 :root {
   --bg-primary: #0a0b0f;
@@ -41,6 +42,7 @@
   --radius-xl: 24px;
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
+  --font-display: 'Space Grotesk', 'Inter', sans-serif;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -130,6 +132,400 @@ input[type="range"]::-webkit-slider-thumb {
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
   border-radius: var(--radius-sm);
+}
+
+/* ── Economic Impact Panel ──────────────────────────────────────── */
+.impact-panel {
+  position: relative;
+  overflow: hidden;
+}
+.impact-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(400px 200px at 10% -10%, rgba(34,211,238,0.25), transparent 60%),
+    radial-gradient(500px 260px at 90% 0%, rgba(244,63,94,0.18), transparent 65%);
+  opacity: 0.7;
+  pointer-events: none;
+}
+.impact-panel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(120deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0) 60%);
+  opacity: 0.6;
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+.impact-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  z-index: 1;
+}
+.impact-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(34,211,238,0.12);
+  color: #22d3ee;
+  border: 1px solid rgba(34,211,238,0.25);
+}
+.impact-title {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+.impact-subtitle {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+.impact-badge {
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #22d3ee;
+  background: rgba(34,211,238,0.12);
+  border: 1px solid rgba(34,211,238,0.3);
+}
+.impact-hero {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 20px;
+  padding: 18px;
+  border-radius: 16px;
+  background: rgba(15, 16, 24, 0.7);
+  border: 1px solid rgba(255,255,255,0.08);
+  z-index: 1;
+}
+.impact-spotlight {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+  z-index: 1;
+}
+.impact-spotlight-card {
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.impact-spotlight-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+.impact-spotlight-title {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+.impact-spotlight-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.impact-chip-strong {
+  font-weight: 700;
+  color: #f8fafc;
+  background: rgba(34,211,238,0.12);
+  border-color: rgba(34,211,238,0.35);
+}
+.impact-spotlight-stats {
+  background: rgba(24,25,36,0.7);
+}
+.impact-spotlight-range {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+}
+.impact-meter {
+  position: relative;
+  height: 28px;
+  display: flex;
+  align-items: center;
+}
+.impact-meter-bar {
+  height: 8px;
+  width: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #34d399 0%, #fbbf24 45%, #fb923c 70%, #f43f5e 100%);
+  box-shadow: 0 0 16px rgba(244,63,94,0.15);
+}
+.impact-meter-marker {
+  position: absolute;
+  top: -2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #0f172a;
+  border: 2px solid #f8fafc;
+  transform: translateX(-50%);
+  box-shadow: 0 0 14px rgba(248,250,252,0.3);
+}
+.impact-meter-label {
+  position: absolute;
+  top: 14px;
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  transform: translateX(-10%);
+}
+.impact-hero-main {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+}
+.impact-hero-label {
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.impact-hero-score {
+  font-family: var(--font-display);
+  font-size: 2.6rem;
+  font-weight: 700;
+  color: #f8fafc;
+}
+.impact-hero-scale {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+.impact-hero-grid {
+  display: grid;
+  gap: 10px;
+}
+.impact-kpi {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+}
+.impact-kpi-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.impact-kpi-value {
+  font-size: 1rem;
+  font-weight: 700;
+}
+.impact-distribution {
+  position: relative;
+  margin: 20px 0;
+  z-index: 1;
+}
+.impact-explainer {
+  margin: 12px 0 18px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(59,130,246,0.08);
+  border: 1px solid rgba(59,130,246,0.18);
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  line-height: 1.6;
+}
+.impact-explainer strong {
+  color: #e8e8f0;
+}
+.impact-distribution-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+.impact-bar {
+  display: flex;
+  height: 36px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.08);
+}
+.impact-bar-seg {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #050505;
+  transition: width 0.4s ease;
+}
+.impact-distribution-legend {
+  display: flex;
+  gap: 16px;
+  margin-top: 10px;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+.impact-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.impact-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+.impact-grid {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 18px;
+  z-index: 1;
+}
+.impact-section-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+}
+.impact-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.impact-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.02);
+}
+.impact-rank {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.8rem;
+}
+.impact-item-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.impact-item-meta {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.impact-chip {
+  font-size: 0.68rem;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.08);
+  color: var(--text-secondary);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+.impact-item-geo {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.impact-signals {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.impact-signal-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+.impact-signal-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.impact-signal-text {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+.impact-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 40px 20px;
+  color: var(--text-muted);
+}
+.impact-empty-hint {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+.map-toggle {
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.04);
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.map-toggle:hover {
+  color: var(--text-secondary);
+  border-color: rgba(255,255,255,0.2);
+}
+.map-toggle.active {
+  color: #0b0c12;
+  background: linear-gradient(135deg, rgba(34,211,238,0.95), rgba(59,130,246,0.9));
+  border-color: rgba(59,130,246,0.6);
+  box-shadow: 0 8px 20px rgba(59,130,246,0.25);
+}
+
+@media (max-width: 1100px) {
+  .impact-spotlight {
+    grid-template-columns: 1fr;
+  }
+  .impact-hero {
+    grid-template-columns: 1fr;
+  }
+  .impact-grid {
+    grid-template-columns: 1fr;
+  }
+  .impact-item {
+    grid-template-columns: auto 1fr;
+  }
+  .impact-item-geo {
+    grid-column: 2 / 3;
+  }
 }
 
 .recharts-cartesian-grid-horizontal line,

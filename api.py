@@ -510,6 +510,95 @@ def api_workforce_projected(severity: float = 0.5, duration: int = 21):
         return {'industries': base.get('industries', []), 'impact': {}, 'error': str(e)}
 
 
+# Economic Impact Vulnerability Scoring
+_economic_impact_cache = None
+_economic_model_instance = None
+
+@app.get("/api/economic-impact")
+def api_economic_impact():
+    """Economic vulnerability scores for census tracts (0-100)."""
+    global _economic_impact_cache, _economic_model_instance
+
+    if _economic_impact_cache is not None:
+        return _economic_impact_cache
+
+    try:
+        from src.models import EconomicImpactModel, EconomicImpactFeatureExtractor
+
+        model_path = Path("models/economic_impact_model.pkl")
+        if not model_path.exists():
+            return {
+                "tracts": [],
+                "distribution": {},
+                "stats": {},
+                "error": "Model not trained. Run: python train_economic_model.py",
+            }
+
+        if _economic_model_instance is None:
+            _economic_model_instance = EconomicImpactModel.load(model_path)
+
+        tracts_df = get_tracts()
+        extractor = EconomicImpactFeatureExtractor()
+        extractor.load_data(tracts_df)
+        X, _ = extractor.extract_batch()
+        predictions = _economic_model_instance.predict(X)
+
+        tracts_with_scores = []
+        for i, (_, row) in enumerate(X.iterrows()):
+            tract_id = row["tract_id"]
+            score = float(predictions[i])
+
+            if score >= 75:
+                risk_level = "Critical"
+            elif score >= 50:
+                risk_level = "High"
+            elif score >= 25:
+                risk_level = "Moderate"
+            else:
+                risk_level = "Low"
+
+            tract_data = tracts_df[tracts_df["tract_id"] == tract_id].iloc[0]
+
+            tracts_with_scores.append({
+                "tract_id": tract_id,
+                "tract_name": tract_data.get("name", f"Tract {tract_id[-4:]}"),
+                "lat": float(tract_data.get("lat", 34.42)),
+                "lon": float(tract_data.get("lon", -119.70)),
+                "vulnerability_score": round(score, 1),
+                "risk_level": risk_level,
+                "population": int(tract_data.get("population", 5000)),
+                "median_income": int(tract_data.get("median_income", 75000)),
+                "poverty_rate": float(tract_data.get("poverty_pct", 10)),
+                "flood_zone": bool(tract_data.get("flood_zone", False)),
+            })
+
+        tracts_with_scores.sort(key=lambda x: x["vulnerability_score"], reverse=True)
+
+        risk_counts = {"Low": 0, "Moderate": 0, "High": 0, "Critical": 0}
+        for tract in tracts_with_scores:
+            risk_counts[tract["risk_level"]] += 1
+
+        scores = [t["vulnerability_score"] for t in tracts_with_scores]
+        _economic_impact_cache = {
+            "tracts": tracts_with_scores,
+            "distribution": risk_counts,
+            "stats": {
+                "total_tracts": len(tracts_with_scores),
+                "mean_vulnerability": round(sum(scores) / len(scores), 1),
+                "max_vulnerability": round(max(scores), 1),
+                "min_vulnerability": round(min(scores), 1),
+                "high_risk_count": risk_counts["High"] + risk_counts["Critical"],
+            },
+        }
+
+        return _economic_impact_cache
+    except Exception as e:
+        import traceback
+
+        traceback.print_exc()
+        return {"tracts": [], "distribution": {}, "stats": {}, "error": str(e)}
+
+
 # Serve React build if it exists
 build_path = Path("frontend/dist")
 if build_path.exists():

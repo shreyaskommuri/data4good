@@ -12,6 +12,7 @@ import WorkforcePanel from './components/WorkforcePanel';
 import NoaaPanel from './components/NoaaPanel';
 import PolicySection from './components/PolicySection';
 import PDFExportButton from './components/PDFExportButton';
+import EconomicImpactPanel from './components/EconomicImpactPanel';
 
 import { Shield, Database, Clock } from 'lucide-react';
 
@@ -71,6 +72,7 @@ export default function App() {
   const noaa = useApi(() => api.getNoaa(), []);
   const workforce = useApi(() => api.getWorkforce(), []);
   const housing = useApi(() => api.getHousing(), []);
+  const economicImpact = useApi(() => api.getEconomicImpact(), []);
 
   // Projected workforce shifts based on severity
   const workforceProjected = useApi(
@@ -185,7 +187,11 @@ export default function App() {
           marginBottom: 24,
         }}>
           <ControlPanel params={localParams} onChange={setLocalParams} />
-          <TractMap tracts={tracts.data} loading={tracts.loading} />
+          <TractMap
+            tracts={tracts.data}
+            loading={tracts.loading}
+            economicImpact={economicImpact.data}
+          />
         </div>
 
         {/* Recovery forecast */}
@@ -212,6 +218,11 @@ export default function App() {
             projected={workforceProjected.data}
             severity={params.severity}
           />
+        </div>
+
+        {/* Economic Impact Scoring (full width) */}
+        <div style={{ marginBottom: 24 }}>
+          <EconomicImpactPanel impact={economicImpact.data} loading={economicImpact.loading} />
         </div>
 
         {/* Housing */}
