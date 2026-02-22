@@ -1,22 +1,6 @@
 import React, { useMemo, useCallback } from 'react';
 import { ResponsiveCirclePacking } from '@nivo/circle-packing';
 
-const DARK_THEME = {
-  background: 'transparent',
-  labels: { text: { fill: '#ffffff', fontSize: 10, fontWeight: 600 } },
-  tooltip: {
-    container: {
-      background: '#181924',
-      color: '#e8e8f0',
-      fontSize: '0.78rem',
-      borderRadius: 8,
-      border: '1px solid rgba(255,255,255,0.08)',
-      boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
-      padding: '8px 12px',
-    },
-  },
-};
-
 export default function IndustryBubbles({ industries, projected, selectedIndustry, onSelect }) {
   const data = useMemo(() => {
     if (!industries?.length) return null;
@@ -52,7 +36,7 @@ export default function IndustryBubbles({ industries, projected, selectedIndustr
   if (!data) return null;
 
   return (
-    <div style={{ height: 280, position: 'relative' }}>
+    <div style={{ height: 360, position: 'relative' }}>
       <ResponsiveCirclePacking
         data={data}
         id="id"
@@ -62,57 +46,125 @@ export default function IndustryBubbles({ industries, projected, selectedIndustr
         leavesOnly={true}
         colors={(node) => {
           if (node.depth === 0) return 'transparent';
-          if (selectedIndustry && node.data.id !== selectedIndustry) return 'rgba(60,60,80,0.2)';
-          return node.data.sensitive ? 'rgba(244,63,94,0.3)' : 'rgba(34,211,238,0.2)';
+          if (selectedIndustry && node.data.id !== selectedIndustry) return 'rgba(60,60,80,0.15)';
+          return node.data.sensitive ? 'rgba(244,63,94,0.3)' : 'rgba(34,211,238,0.18)';
         }}
         borderWidth={(node) => {
           if (node.depth === 0) return 0;
-          if (selectedIndustry === node.data.id) return 2;
-          return 1;
+          return selectedIndustry === node.data.id ? 2 : 1;
         }}
         borderColor={(node) => {
           if (node.depth === 0) return 'transparent';
           if (selectedIndustry === node.data.id) return '#ffffff';
-          if (selectedIndustry) return 'rgba(60,60,80,0.15)';
-          return node.data.sensitive ? 'rgba(244,63,94,0.5)' : 'rgba(34,211,238,0.3)';
+          if (selectedIndustry) return 'rgba(60,60,80,0.1)';
+          return node.data.sensitive ? 'rgba(244,63,94,0.45)' : 'rgba(34,211,238,0.25)';
         }}
         enableLabels={true}
-        labelsSkipRadius={18}
+        labelsSkipRadius={16}
         labelsFilter={(node) => node.node.height === 0}
-        labelTextColor="#ffffff"
+        labelTextColor={(node) => {
+          if (selectedIndustry && node.id !== selectedIndustry) return 'rgba(255,255,255,0.2)';
+          return '#ffffff';
+        }}
         label={(node) => {
-          const name = node.id.length > 12 ? node.id.slice(0, 10) + '..' : node.id;
-          return name;
+          if (node.id.length > 15) return node.id.slice(0, 13) + '..';
+          return node.id;
         }}
         onClick={handleClick}
-        theme={DARK_THEME}
+        theme={{
+          background: 'transparent',
+          labels: {
+            text: {
+              fontSize: 9,
+              fontWeight: 600,
+              fontFamily: 'Inter, sans-serif',
+            },
+          },
+        }}
         tooltip={({ id, value, data: d }) => (
-          <div>
-            <div style={{
-              fontWeight: 600, marginBottom: 2,
-              color: d.sensitive ? '#f43f5e' : '#22d3ee',
-            }}>
-              {id}
-            </div>
-            <div style={{ color: '#a0a0b8' }}>
-              {value} workers
-            </div>
-            <div style={{ color: d.sensitive ? '#f43f5e' : '#34d399', fontSize: '0.72rem' }}>
-              {d.sensitive ? 'Climate-Sensitive' : 'Climate-Resilient'}
-            </div>
-            {d.delta !== 0 && (
-              <div style={{
-                color: d.delta < 0 ? '#f43f5e' : '#34d399', marginTop: 2,
-                fontFamily: "'JetBrains Mono', monospace", fontSize: '0.75rem',
-              }}>
-                Shock projection: {d.delta > 0 ? '+' : ''}{d.delta}
-              </div>
-            )}
-          </div>
+          <BubbleTooltip id={id} value={value} sensitive={d.sensitive} delta={d.delta} />
         )}
         animate={true}
         motionConfig="gentle"
       />
+    </div>
+  );
+}
+
+function BubbleTooltip({ id, value, sensitive, delta }) {
+  const accentColor = sensitive ? '#f43f5e' : '#22d3ee';
+  const tagBg = sensitive ? 'rgba(244,63,94,0.15)' : 'rgba(34,211,238,0.15)';
+  const tagBorder = sensitive ? 'rgba(244,63,94,0.3)' : 'rgba(34,211,238,0.3)';
+  const tagText = sensitive ? 'Vulnerable to Shocks' : 'Shock-Resilient';
+
+  return (
+    <div style={{
+      padding: '10px 14px',
+      background: '#14151f',
+      border: '1px solid rgba(255,255,255,0.1)',
+      borderRadius: 10,
+      boxShadow: '0 12px 40px rgba(0,0,0,0.6)',
+      minWidth: 160,
+      maxWidth: 240,
+    }}>
+      <div style={{
+        fontSize: '0.88rem', fontWeight: 700,
+        color: '#f0f0f5', marginBottom: 6,
+        lineHeight: 1.3,
+      }}>
+        {id}
+      </div>
+
+      <div style={{
+        display: 'flex', alignItems: 'baseline', gap: 6,
+        marginBottom: 8,
+      }}>
+        <span style={{
+          fontSize: '1.3rem', fontWeight: 800,
+          fontFamily: "'JetBrains Mono', monospace",
+          color: accentColor,
+        }}>
+          {value.toLocaleString()}
+        </span>
+        <span style={{ fontSize: '0.72rem', color: '#8b8ca0' }}>
+          workers
+        </span>
+      </div>
+
+      <div style={{
+        display: 'inline-flex', alignItems: 'center', gap: 4,
+        padding: '3px 8px', borderRadius: 6,
+        background: tagBg,
+        border: `1px solid ${tagBorder}`,
+        fontSize: '0.65rem', fontWeight: 600,
+        color: accentColor,
+        marginBottom: delta !== 0 ? 8 : 0,
+      }}>
+        <span style={{
+          width: 6, height: 6, borderRadius: '50%',
+          background: accentColor,
+        }} />
+        {tagText}
+      </div>
+
+      {delta !== 0 && (
+        <div style={{
+          padding: '5px 8px', borderRadius: 6,
+          background: delta < 0 ? 'rgba(244,63,94,0.08)' : 'rgba(52,211,153,0.08)',
+          border: `1px solid ${delta < 0 ? 'rgba(244,63,94,0.15)' : 'rgba(52,211,153,0.15)'}`,
+          fontSize: '0.72rem',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        }}>
+          <span style={{ color: '#8b8ca0' }}>Shock impact</span>
+          <span style={{
+            fontFamily: "'JetBrains Mono', monospace",
+            fontWeight: 700,
+            color: delta < 0 ? '#f43f5e' : '#34d399',
+          }}>
+            {delta > 0 ? '+' : ''}{delta}
+          </span>
+        </div>
+      )}
     </div>
   );
 }

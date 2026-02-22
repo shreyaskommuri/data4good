@@ -1,19 +1,20 @@
 import React from 'react';
+import { ShieldAlert } from 'lucide-react';
 
 const SIZE = 170;
 const STROKE = 14;
 const RADIUS = (SIZE - STROKE) / 2;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
-export default function ClimateExposureGauge({ sensitivityPct = 0, sensitive = 0, resilient = 0, avgJobs = 0 }) {
+export default function WorkforceAtRiskGauge({ sensitivityPct = 0, sensitive = 0, resilient = 0, avgJobs = 0 }) {
   const pct = Math.min(Math.max(sensitivityPct, 0), 100);
   const offset = CIRCUMFERENCE - (pct / 100) * CIRCUMFERENCE;
+  const total = sensitive + resilient;
 
   const color = pct > 30 ? '#f43f5e' : pct > 15 ? '#fbbf24' : '#22d3ee';
-  const label = pct > 30 ? 'HIGH RISK' : pct > 15 ? 'MODERATE' : 'LOW RISK';
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
       <div style={{ position: 'relative', width: SIZE, height: SIZE }}>
         <svg width={SIZE} height={SIZE} style={{ transform: 'rotate(-90deg)' }}>
           <defs>
@@ -31,17 +32,13 @@ export default function ClimateExposureGauge({ sensitivityPct = 0, sensitive = 0
             </filter>
           </defs>
           <circle
-            cx={SIZE / 2}
-            cy={SIZE / 2}
-            r={RADIUS}
+            cx={SIZE / 2} cy={SIZE / 2} r={RADIUS}
             fill="none"
             stroke="rgba(255,255,255,0.06)"
             strokeWidth={STROKE}
           />
           <circle
-            cx={SIZE / 2}
-            cy={SIZE / 2}
-            r={RADIUS}
+            cx={SIZE / 2} cy={SIZE / 2} r={RADIUS}
             fill="none"
             stroke="url(#gaugeGrad)"
             strokeWidth={STROKE}
@@ -49,9 +46,7 @@ export default function ClimateExposureGauge({ sensitivityPct = 0, sensitive = 0
             strokeDasharray={CIRCUMFERENCE}
             strokeDashoffset={offset}
             filter="url(#glow)"
-            style={{
-              transition: 'stroke-dashoffset 1s cubic-bezier(0.4, 0, 0.2, 1)',
-            }}
+            style={{ transition: 'stroke-dashoffset 1s cubic-bezier(0.4, 0, 0.2, 1)' }}
           />
         </svg>
         <div style={{
@@ -60,40 +55,46 @@ export default function ClimateExposureGauge({ sensitivityPct = 0, sensitive = 0
           alignItems: 'center', justifyContent: 'center',
         }}>
           <div style={{
-            fontSize: '2rem', fontWeight: 800,
+            fontSize: '1.8rem', fontWeight: 800,
             fontFamily: "'JetBrains Mono', monospace",
-            color,
-            lineHeight: 1,
+            color, lineHeight: 1,
           }}>
-            {pct.toFixed(1)}%
+            {sensitive.toLocaleString()}
           </div>
           <div style={{
-            fontSize: '0.6rem', fontWeight: 600,
-            textTransform: 'uppercase', letterSpacing: '0.08em',
-            color: 'var(--text-muted)', marginTop: 4,
+            fontSize: '0.6rem', fontWeight: 500, color: 'var(--text-muted)',
+            marginTop: 4, textAlign: 'center', lineHeight: 1.3,
           }}>
-            Climate Exposure
+            workers in<br />vulnerable industries
           </div>
         </div>
       </div>
 
       <div style={{
+        display: 'flex', alignItems: 'center', gap: 6,
         padding: '4px 12px', borderRadius: 20,
-        background: `${color}15`,
-        border: `1px solid ${color}40`,
-        fontSize: '0.68rem', fontWeight: 600,
-        color, letterSpacing: '0.05em',
+        background: `${color}12`,
+        border: `1px solid ${color}30`,
+        fontSize: '0.7rem', fontWeight: 600, color,
       }}>
-        {label}
+        <ShieldAlert size={11} />
+        {pct.toFixed(1)}% of {total.toLocaleString()} total
       </div>
 
       <div style={{
-        display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8,
+        display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6,
         width: '100%',
       }}>
-        <MiniStat value={sensitive.toLocaleString()} label="Sensitive" color="#f43f5e" />
-        <MiniStat value={resilient.toLocaleString()} label="Resilient" color="#22d3ee" />
-        <MiniStat value={avgJobs} label="Avg Jobs" color="#a78bfa" />
+        <MiniStat
+          value={resilient.toLocaleString()}
+          label="Resilient"
+          color="#22d3ee"
+        />
+        <MiniStat
+          value={avgJobs}
+          label="Avg Jobs / Worker"
+          color="#a78bfa"
+        />
       </div>
     </div>
   );
@@ -101,17 +102,24 @@ export default function ClimateExposureGauge({ sensitivityPct = 0, sensitive = 0
 
 function MiniStat({ value, label, color }) {
   return (
-    <div style={{ textAlign: 'center' }}>
+    <div style={{
+      textAlign: 'center',
+      padding: '6px 4px',
+      borderRadius: 8,
+      background: `${color}08`,
+      border: `1px solid ${color}15`,
+    }}>
       <div style={{
-        fontSize: '1rem', fontWeight: 700,
+        fontSize: '0.9rem', fontWeight: 700,
         fontFamily: "'JetBrains Mono', monospace",
         color,
       }}>
         {value}
       </div>
       <div style={{
-        fontSize: '0.6rem', color: 'var(--text-muted)',
-        textTransform: 'uppercase', letterSpacing: '0.04em',
+        fontSize: '0.55rem', color: 'var(--text-muted)',
+        textTransform: 'uppercase', letterSpacing: '0.03em',
+        marginTop: 1,
       }}>
         {label}
       </div>

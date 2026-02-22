@@ -14,6 +14,24 @@ const PRESSURE_COLORS = {
 
 const PRESSURE_LABELS = ['Critical', 'High', 'Moderate', 'Low'];
 
+function titleCase(str) {
+  if (!str) return '';
+  return str
+    .toLowerCase()
+    .split(' ')
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+}
+
+function abbreviate(name) {
+  if (!name) return '';
+  const titled = titleCase(name);
+  if (titled.length <= 12) return titled;
+  return titled.replace('Santa Barbara County', 'SB County')
+    .replace('Santa Barbara', 'Santa Barb.')
+    .replace('Santa Maria', 'Sta. Maria');
+}
+
 function CustomTooltip({ active, payload }) {
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
@@ -28,7 +46,7 @@ function CustomTooltip({ active, payload }) {
       maxWidth: 260,
     }}>
       <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#e8e8f0', marginBottom: 8 }}>
-        {d.jurisdiction}
+        {titleCase(d.jurisdiction)}
       </div>
       <div style={{ fontSize: '0.78rem', color: '#8b8ca0', lineHeight: 1.9 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
@@ -188,35 +206,35 @@ export default function HousingPanel({ housing, loading }) {
             ))}
           </div>
 
-          {/* Chart */}
-          <ResponsiveContainer width="100%" height={260}>
+          {/* Chart — horizontal so jurisdiction labels sit flat on the left */}
+          <ResponsiveContainer width="100%" height={Math.max(sortedPressure.length * 36, 200)}>
             <BarChart
               data={sortedPressure}
-              margin={{ top: 5, right: 20, bottom: 5, left: 0 }}
+              layout="vertical"
+              margin={{ top: 4, right: 32, bottom: 4, left: 8 }}
             >
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-              <XAxis
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" horizontal={false} />
+              <YAxis
                 dataKey="jurisdiction"
+                type="category"
+                stroke="rgba(255,255,255,0.1)"
+                tickFormatter={abbreviate}
+                tick={{ fill: '#8b8ca0', fontSize: 11, fontWeight: 500 }}
+                width={100}
+                tickLine={false}
+                axisLine={false}
+                interval={0}
+              />
+              <XAxis
+                type="number"
                 stroke="rgba(255,255,255,0.1)"
                 tick={{ fill: '#5a5b70', fontSize: 10 }}
-                angle={-30}
-                textAnchor="end"
-                height={60}
-              />
-              <YAxis
-                stroke="rgba(255,255,255,0.1)"
-                tick={{ fill: '#5a5b70', fontSize: 11 }}
                 domain={[0, 100]}
-                label={{
-                  value: 'Pressure (0–100)',
-                  angle: -90,
-                  position: 'insideLeft',
-                  offset: 10,
-                  style: { fill: '#5a5b70', fontSize: 10 },
-                }}
+                tickLine={false}
+                axisLine={false}
               />
               <Tooltip content={<CustomTooltip />} />
-              <Bar dataKey="housing_pressure_index" radius={[6, 6, 0, 0]} name="Housing Pressure">
+              <Bar dataKey="housing_pressure_index" radius={[0, 6, 6, 0]} name="Housing Pressure" barSize={20}>
                 {sortedPressure.map((entry, idx) => (
                   <Cell
                     key={idx}
@@ -241,11 +259,11 @@ export default function HousingPanel({ housing, loading }) {
                   <strong style={{ color: '#f43f5e' }}>
                     {criticalCount} jurisdiction{criticalCount > 1 ? 's' : ''} at critical pressure.
                   </strong>{' '}
-                  <strong>{worstJurisdiction.jurisdiction}</strong> has the highest score
+                  <strong>{titleCase(worstJurisdiction.jurisdiction)}</strong> has the highest score
                   at {worstJurisdiction.housing_pressure_index?.toFixed(1)}/100, meaning very limited housing
                   capacity to absorb workers displaced by a climate event.
                   {bestJurisdiction && bestJurisdiction.jurisdiction !== worstJurisdiction.jurisdiction && (
-                    <> In contrast, <strong>{bestJurisdiction.jurisdiction}</strong> scores just{' '}
+                    <> In contrast, <strong>{titleCase(bestJurisdiction.jurisdiction)}</strong> scores just{' '}
                     {bestJurisdiction.housing_pressure_index?.toFixed(1)}/100.</>
                   )}
                 </>
@@ -253,7 +271,7 @@ export default function HousingPanel({ housing, loading }) {
                 <>
                   <strong style={{ color: '#fbbf24' }}>Elevated housing pressure across the region.</strong>{' '}
                   The average score of {avgPressure.toFixed(1)}/100 suggests most jurisdictions have
-                  limited spare capacity. <strong>{worstJurisdiction.jurisdiction}</strong> leads
+                  limited spare capacity. <strong>{titleCase(worstJurisdiction.jurisdiction)}</strong> leads
                   at {worstJurisdiction.housing_pressure_index?.toFixed(1)}/100.
                 </>
               ) : (

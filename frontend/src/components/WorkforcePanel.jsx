@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Users, ArrowRightLeft, Briefcase, MapPin, X, Zap } from 'lucide-react';
 import TransitionSankey from './TransitionSankey';
 import IndustryBubbles from './IndustryBubbles';
-import ClimateExposureGauge from './ClimateExposureGauge';
+import WorkforceAtRiskGauge from './ClimateExposureGauge';
 
 export default function WorkforcePanel({ workforce, loading, projected, severity = 0.5 }) {
   const [selectedIndustry, setSelectedIndustry] = useState(null);
@@ -100,7 +100,7 @@ export default function WorkforcePanel({ workforce, loading, projected, severity
           {/* Row 1: Gauge + Circle Packing */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: '200px 1fr',
+            gridTemplateColumns: '190px 1fr',
             gap: 16,
             marginBottom: 16,
           }}>
@@ -108,7 +108,7 @@ export default function WorkforcePanel({ workforce, loading, projected, severity
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               padding: '12px 0',
             }}>
-              <ClimateExposureGauge
+              <WorkforceAtRiskGauge
                 sensitivityPct={stats.sensitivity_pct || 0}
                 sensitive={stats.climate_sensitive_workers || 0}
                 resilient={stats.climate_resilient_workers || 0}

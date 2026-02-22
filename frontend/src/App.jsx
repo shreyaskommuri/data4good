@@ -204,20 +204,19 @@ export default function App() {
           <NoaaPanel noaa={noaa.data} loading={noaa.loading} />
         </div>
 
-        {/* Housing + Workforce row */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: 24,
-          marginBottom: 24,
-        }}>
-          <HousingPanel housing={housing.data} loading={housing.loading} />
+        {/* Workforce Intelligence (full width) */}
+        <div style={{ marginBottom: 24 }}>
           <WorkforcePanel
             workforce={workforce.data}
             loading={workforce.loading}
             projected={workforceProjected.data}
             severity={params.severity}
           />
+        </div>
+
+        {/* Housing */}
+        <div style={{ marginBottom: 24 }}>
+          <HousingPanel housing={housing.data} loading={housing.loading} />
         </div>
 
         {/* Policy */}
